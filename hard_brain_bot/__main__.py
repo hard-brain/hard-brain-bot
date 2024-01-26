@@ -1,10 +1,13 @@
+import io
+
 import disnake
+from disnake import FFmpegPCMAudio
 import dotenv
 import os
+from aiohttp import ClientSession
 
 from client import HardBrain
 from hard_brain_bot.utils import setup_logging, http_requests
-
 
 bot = HardBrain()
 
@@ -18,8 +21,25 @@ async def on_ready():
 async def question(message: disnake.Message):
     if message.author.id == bot.user.id:
         return
-    connection = await http_requests.get("http://localhost:8000/question")
-    await message.channel.send(str(connection))
+
+    # check user is in voice channel
+    if not (connected := message.author.voice):
+        return await message.channel.send("Error: you are not connected to a voice channel")
+
+    async with ClientSession() as session:
+        question_response = await http_requests.request_json("GET", "http://localhost:8000/question", session)
+        song_id = question_response[0]['song_id']
+        song_response = await http_requests.request_bytes("GET", f"http://localhost:8000/audio/{song_id}", session)
+
+    song_bytes = io.BytesIO(song_response)  # todo: make this close once no longer needed
+    stream = FFmpegPCMAudio(song_bytes, pipe=True)
+    voice = disnake.utils.get(bot.voice_clients, guild=message.guild)
+    if voice and voice.is_connected:
+        await voice.move_to(connected.channel)
+    else:
+        voice = await connected.channel.connect()
+    voice.play(stream)
+    await message.channel.send(f"Now playing in {connected.channel}")
 
 
 # todo: wtf is a cog lmao
