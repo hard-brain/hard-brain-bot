@@ -19,7 +19,7 @@ async def request_bytes(
     url: str,
     session: ClientSession,
     params: dict | None = None,
-):
+) -> bytes:
     if not params:
         params = {}
     async with session.request(method, url, params=params) as response:
