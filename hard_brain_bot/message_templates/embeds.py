@@ -22,11 +22,14 @@ def embed_song_data(title: str, song_data: SongData, thumbnail: Asset | None = N
     )
     if thumbnail:
         embed.set_thumbnail(thumbnail)
-    embed.add_field(name="Song Title", value=song_data.title)
+    embed.add_field(name="Song Title", value=song_data.title, inline=False)
+    embed.add_field(name="Song Artist", value=song_data.artist, inline=False)
+    embed.add_field(name="Genre", value=song_data.genre, inline=False)
     if len(song_data.alt_titles) > 0:
         titles = [f"`{title}`" for title in song_data.alt_titles]
         embed.add_field(
             name="Alternate titles",
             value=", ".join(titles),
+            inline=False
         )
     return embed

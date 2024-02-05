@@ -43,12 +43,12 @@ class QuizCommands(commands.Cog):
     @commands.slash_command(description="Test command to fetch data for a random song")
     async def debug_song(self, ctx: disnake.ApplicationCommandInteraction) -> None:
         fixture = SongData(
-            30999,
-            "test.mp3",
-            "TEST!! がんばって！！",
-            ["test!!"],
-            "DJ TEST",
-            "testcore",
+            song_id=30999,
+            filename="test.mp3",
+            title="TEST!! がんばって！！",
+            alt_titles=["test!!", "test ganbatte"],
+            artist="DJ TEST",
+            genre="testcore",
         )
         embed = embeds.embed_song_data("Example song data embed", fixture, thumbnail=self.bot.user.display_avatar)
         await ctx.response.send_message(embed=embed)
