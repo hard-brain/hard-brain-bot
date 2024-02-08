@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-
   <component name="Black">
     <option name="enabledOnReformat" value="true" />
     <option name="sdkName" value="Poetry (hard-brain-bot)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Poetry (hard-brain-bot)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Poetry (hard-brain-bot) (2)" project-jdk-type="Python SDK" />
 </project>
