@@ -14,28 +14,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apk update && apk add \
-    gcc \
-    libc-dev \
-    libffi-dev \
-    libressl-dev \
-    musl-dev \
-    libffi-dev \
-    gcompat \
-    cargo \
     ffmpeg \
     libopusenc \
     libogg \
     opus-tools
 RUN python -m pip install wheel poetry==1.7.1
-RUN apk del \
-    gcc \
-    libc-dev \
-    libffi-dev \
-    libressl-dev \
-    musl-dev \
-    libffi-dev \
-    gcompat \
-    cargo 
 
 COPY pyproject.toml poetry.lock ./
 RUN touch README.md
