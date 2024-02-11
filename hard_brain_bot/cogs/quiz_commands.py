@@ -1,5 +1,6 @@
 import io
 import logging
+import os
 
 import disnake
 from aiohttp import ClientSession
@@ -15,10 +16,12 @@ from hard_brain_bot.message_templates import embeds
 
 class QuizCommands(commands.Cog):
     def __init__(self, bot: HardBrain) -> None:
+        hostname = os.getenv("HARD_BRAIN_API_HOSTNAME")
         self.bot = bot
         self.round_in_progress = False
         self.current_round: SongData | None = None
         self.voice: VoiceClient | None = None
+        self.hostname = hostname if hostname else "localhost"
 
     @commands.Cog.listener()
     async def on_message(self, ctx: disnake.Message) -> None:
@@ -67,12 +70,12 @@ class QuizCommands(commands.Cog):
         try:
             async with ClientSession() as session:
                 question_response = await http_requests.request_json(
-                    "GET", "http://host.docker.internal:8000/question", session
+                    "GET", f"http://{self.hostname}:8000/question", session
                 )
                 self.current_round = SongData(**question_response[0])
                 audio_response = await http_requests.request_bytes(
                     "GET",
-                    f"http://host.docker.internal:8000/audio/{self.current_round.song_id}",
+                    f"http://{self.hostname}:8000/audio/{self.current_round.song_id}",
                     session,
                 )
         except CommandInvokeError as e:
