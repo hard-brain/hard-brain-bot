@@ -10,13 +10,32 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=0 \
     POETRY_VIRTUALENVS_CREATE=0 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
+    
 WORKDIR /app
 
-RUN apk update && apk add ffmpeg
-RUN apk add libopusenc
-RUN apk add libogg
-RUN apk add opus-tools
-RUN python -m pip install poetry==1.7.1
+RUN apk update && apk add \
+    gcc \
+    libc-dev \
+    libffi-dev \
+    libressl-dev \
+    musl-dev \
+    libffi-dev \
+    gcompat \
+    cargo \
+    ffmpeg \
+    libopusenc \
+    libogg \
+    opus-tools
+RUN python -m pip install wheel poetry==1.7.1
+RUN apk del \
+    gcc \
+    libc-dev \
+    libffi-dev \
+    libressl-dev \
+    musl-dev \
+    libffi-dev \
+    gcompat \
+    cargo 
 
 COPY pyproject.toml poetry.lock ./
 RUN touch README.md
