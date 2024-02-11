@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1
+
+ARG PYTHON_REGISTRY=python
+ARG PYTHON_VERSION=3.10.13
+FROM ${PYTHON_REGISTRY}:${PYTHON_VERSION}-alpine as base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=0 \
+    POETRY_VIRTUALENVS_CREATE=0 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+    
+WORKDIR /app
+
+RUN apk update && apk add \
+    gcc \
+    libc-dev \
+    libffi-dev \
+    libressl-dev \
+    musl-dev \
+    libffi-dev \
+    gcompat \
+    cargo \
+    ffmpeg \
+    libopusenc \
+    libogg \
+    opus-tools
+RUN python -m pip install wheel poetry==1.7.1
+RUN apk del \
+    gcc \
+    libc-dev \
+    libffi-dev \
+    libressl-dev \
+    musl-dev \
+    libffi-dev \
+    gcompat \
+    cargo 
+
+COPY pyproject.toml poetry.lock ./
+RUN touch README.md
+RUN poetry install --without dev && rm -rf $POETRY_CACHE_DIR
+
+COPY hard_brain_bot ./hard_brain_bot
+RUN poetry install --without dev --no-root
+
+CMD ["python", "-m", "hard_brain_bot"]
