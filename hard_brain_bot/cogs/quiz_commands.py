@@ -12,6 +12,7 @@ from hard_brain_bot.client import HardBrain
 from hard_brain_bot.dataclazzes.requests import SongData
 from hard_brain_bot.message_templates import embeds
 from hard_brain_bot.services.hard_brain_service import HardBrainService
+from hard_brain_bot.utils.async_helpers import AsyncTimer
 
 
 class QuizCommands(commands.Cog):
@@ -77,10 +78,8 @@ class QuizCommands(commands.Cog):
         await ctx.response.defer()
         await ctx.edit_original_response("Please wait, preparing a quiz...")
         try:
-            print("getting question...")
             question_response = await self.backend.get_question()
             self.current_round = SongData(**question_response[0])
-            print("getting audio...")
             audio_response = await self.backend.get_audio(self.current_round.song_id)
         except CommandInvokeError as e:
             logging.error(e)
@@ -100,7 +99,7 @@ class QuizCommands(commands.Cog):
         stream = FFmpegPCMAudio(song_bytes, pipe=True)
         self.voice = await connected.channel.connect()
         self.voice.play(stream)
-        self.round_timer = threading.Timer(self.round_time_limit, self._end_round)  # todo: address async issue
+        self.round_timer = AsyncTimer(self.round_time_limit, self._end_round)
         self.round_timer.start()
 
 
