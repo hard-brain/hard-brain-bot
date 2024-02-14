@@ -1,13 +1,12 @@
 from disnake import Embed, Asset
-from hard_brain_bot.dataclazzes.requests import SongData
+from hard_brain_bot.data_models.requests import SongData
 
 
 def embed_about() -> Embed:
     embed = Embed(
         title="Hard Brain",
-        description="A IIDX music quiz bot. Made by corndog#2974.",
+        description="A IIDX music quiz bot. Made by corndog.",
     )
-    embed.add_field(name="Prefix", value="hb! (or slash command)")
     embed.add_field(
         name="Commands",
         value="`about`, `start_quiz`",

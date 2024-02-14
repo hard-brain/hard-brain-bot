@@ -9,7 +9,7 @@ from disnake.ext import commands
 from disnake.ext.commands import CommandInvokeError
 
 from hard_brain_bot.client import HardBrain
-from hard_brain_bot.dataclazzes.requests import SongData
+from hard_brain_bot.data_models.requests import SongData
 from hard_brain_bot.message_templates import embeds
 from hard_brain_bot.services.hard_brain_service import HardBrainService
 from hard_brain_bot.utils.async_helpers import AsyncTimer
