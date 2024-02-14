@@ -1,31 +1,28 @@
 import io
 import logging
-import os
-import threading
 import platform
+import threading
 
 import disnake
-from aiohttp import ClientSession
 from disnake import FFmpegPCMAudio, VoiceClient
 from disnake.ext import commands
 from disnake.ext.commands import CommandInvokeError
 
 from hard_brain_bot.client import HardBrain
-from hard_brain_bot.utils import http_requests
 from hard_brain_bot.dataclazzes.requests import SongData
 from hard_brain_bot.message_templates import embeds
+from hard_brain_bot.services.hard_brain_service import HardBrainService
 
 
 class QuizCommands(commands.Cog):
     def __init__(self, bot: HardBrain) -> None:
-        hostname = os.getenv("HARD_BRAIN_API_HOSTNAME")
         self.bot = bot
         self.round_channel = None
         self.round_time_limit = 30.0
         self.round_timer: threading.Timer | None = None
         self.current_round: SongData | None = None
         self.voice: VoiceClient | None = None
-        self.hostname = hostname if hostname else "localhost"
+        self.backend = HardBrainService()
 
     @commands.Cog.listener()
     async def on_message(self, ctx: disnake.Message) -> None:
@@ -77,25 +74,22 @@ class QuizCommands(commands.Cog):
         if self.round_channel:
             await ctx.response.send_message("A round is already in progress!")
             return
+        await ctx.response.defer()
+        await ctx.edit_original_response("Please wait, preparing a quiz...")
         try:
-            async with ClientSession() as session:
-                question_response = await http_requests.request_json(
-                    "GET", f"http://{self.hostname}:8000/question", session
-                )
-                self.current_round = SongData(**question_response[0])
-                audio_response = await http_requests.request_bytes(
-                    "GET",
-                    f"http://{self.hostname}:8000/audio/{self.current_round.song_id}",
-                    session,
-                )
+            print("getting question...")
+            question_response = await self.backend.get_question()
+            self.current_round = SongData(**question_response[0])
+            print("getting audio...")
+            audio_response = await self.backend.get_audio(self.current_round.song_id)
         except CommandInvokeError as e:
             logging.error(e)
-            await ctx.response.send_message(
+            await ctx.edit_original_response(
                 f"Error occurred while fetching song response..."
             )
             return
 
-        await ctx.response.send_message(
+        await ctx.edit_original_response(
             f"Quiz starting in #{connected.channel}! "
             f"You have {int(self.round_time_limit)} seconds to answer the name of the song."
         )
@@ -106,7 +100,7 @@ class QuizCommands(commands.Cog):
         stream = FFmpegPCMAudio(song_bytes, pipe=True)
         self.voice = await connected.channel.connect()
         self.voice.play(stream)
-        self.round_timer = threading.Timer(self.round_time_limit, self._end_round)
+        self.round_timer = threading.Timer(self.round_time_limit, self._end_round)  # todo: address async issue
         self.round_timer.start()
 
 
