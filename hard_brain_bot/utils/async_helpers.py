@@ -58,7 +58,9 @@ class CancellableTask:
         self.task: asyncio.Task | None = None
 
     def start(self) -> None:
-        self.task = self.loop.create_task(self.callback(*self.args, **self.kwargs))
+        if isinstance(self.task, asyncio.Task):
+            self.task = self.loop.create_task(self.callback(*self.args, **self.kwargs))
 
     def cancel(self) -> None:
-        self.task.cancel()
+        if isinstance(self.task, asyncio.Task):
+            self.task.cancel()

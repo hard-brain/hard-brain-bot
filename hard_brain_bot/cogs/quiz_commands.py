@@ -1,10 +1,7 @@
-import io
 import logging
-import platform
-import threading
 
 import disnake
-from disnake import FFmpegPCMAudio, VoiceClient
+from disnake import VoiceClient
 from disnake.ext import commands
 from disnake.ext.commands import CommandInvokeError
 
@@ -13,38 +10,20 @@ from hard_brain_bot.data_models.requests import SongData
 from hard_brain_bot.message_templates import embeds
 from hard_brain_bot.services.hard_brain_service import HardBrainService
 from hard_brain_bot.services.quiz_service import QuizService
-from hard_brain_bot.utils.async_helpers import AsyncTimer
 
 
 class QuizCommands(commands.Cog):
-    def __init__(self, bot: HardBrain, round_time_limit: float = 30.0) -> None:
+    def __init__(self, bot: HardBrain) -> None:
         self.bot = bot
-        self.round_channel = None
-        self.round_time_limit = round_time_limit
-        self.round_timer: threading.Timer | None = None
-        self.current_round: SongData | None = None
         self.voice: VoiceClient | None = None
         self.backend = HardBrainService()
         self.game: QuizService | None = None
 
     @commands.Cog.listener()
     async def on_message(self, ctx: disnake.Message) -> None:
-        if not self.round_channel or ctx.author == self.bot.user.id:
+        if not self.game or ctx.author == self.bot.user.id:
             return
-        if self.current_round.is_correct_answer(ctx.content):
-            self.round_timer.cancel()
-            await self._end_round()
-
-    async def _end_round(self):
-        embed = embeds.embed_song_data(
-            "Correct answer",
-            self.current_round,
-            thumbnail=self.bot.user.display_avatar,
-        )
-        await self.round_channel.send(embed=embed)
-        self.round_channel = None
-        await self.voice.disconnect()
-        self.voice.cleanup()
+        await self.game.check_answer(ctx.content)
 
     @commands.slash_command(description="More information about Hard Brain")
     async def about(self, ctx: disnake.ApplicationCommandInteraction) -> None:
@@ -67,51 +46,54 @@ class QuizCommands(commands.Cog):
         await ctx.response.send_message(embed=embed)
 
     @commands.slash_command(description="Starts a quiz")
-    async def start_quiz(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+    async def start_quiz(
+        self,
+        ctx: disnake.ApplicationCommandInteraction,
+        rounds: int = 5,
+        time_limit: float = 30.0,
+    ) -> None:
         # check user is in voice channel
         if not (connected := ctx.author.voice):
             await ctx.response.send_message(
                 "Error: you are not connected to a voice channel"
             )
             return
-        if self.round_channel:
+        if self.game:
             await ctx.response.send_message("A round is already in progress!")
             return
         await ctx.response.defer()
         await ctx.edit_original_response("Please wait, preparing a quiz...")
         try:
-            question_response = await self.backend.get_question()
-            self.current_round = SongData(**question_response[0])
-            audio_response = await self.backend.get_audio(self.current_round.song_id)
+            question_response = await self.backend.get_question(number_of_songs=rounds)
         except CommandInvokeError as e:
             logging.error(e)
-            await ctx.edit_original_response(
-                f"Error occurred while fetching song response..."
-            )
+            await ctx.edit_original_response(f"Error occurred while preparing quiz...")
             return
 
         await ctx.edit_original_response(
             f"Quiz starting in #{connected.channel}! "
-            f"You have {int(self.round_time_limit)} seconds to answer the name of the song."
+            f"You have {int(time_limit)} seconds to answer the name of the song."
         )
-        # self.game = QuizService(ctx, self.backend, question_response)
-        if platform.system() != "Windows":
-            disnake.opus.load_opus("libopusenc.so.0")
-        self.round_channel = ctx.channel
-        song_bytes = io.BytesIO(audio_response)
-        stream = FFmpegPCMAudio(song_bytes, pipe=True)
-        self.voice = await connected.channel.connect()
-        self.voice.play(stream)
-        self.round_timer = AsyncTimer(self.round_time_limit, self._end_round)
-        self.round_timer.start()
+        self.game = QuizService(
+            ctx,
+            self.backend,
+            song_data_list=question_response,
+            round_time_limit=time_limit,
+        )
+        await self.game.start_game()
 
     @commands.slash_command(description="Cancels an ongoing quiz")
     async def end_quiz(self, ctx: disnake.ApplicationCommandInteraction) -> None:
-        await ctx.response.send_message("Not implemented yet...")
+        await ctx.response.defer()
+        await ctx.edit_original_response("Cancelling quiz...")
+        await self.game.end_game()
+        await ctx.edit_original_response("Cancelled quiz")
+        self.game = None  # will have to investigate whether all tasks get cleaned up before we call this command
 
     @commands.slash_command(description="Skip a round")
     async def skip_round(self, ctx: disnake.ApplicationCommandInteraction) -> None:
-        await ctx.response.send_message("Not implemented yet...")
+        await ctx.response.send_message("Skipping round...")
+        await self.game.skip_round()
 
 
 def setup(bot: HardBrain) -> None:

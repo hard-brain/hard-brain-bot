@@ -17,7 +17,7 @@ class QuizService:
         self,
         ctx: ApplicationCommandInteraction,
         backend: HardBrainService,
-        song_data_list: list[SongData],
+        song_data_list: list[dict],
         round_time_limit: float = 30.0,
     ):
         """
@@ -34,16 +34,17 @@ class QuizService:
         except OSError:
             logging.error("Could not load the opus shared library")
         self.backend = backend
-        self.song_data_list = song_data_list
-        self.round_channel = ctx.channel
+        self.song_data_list = list(map(lambda props: SongData(**props), song_data_list))
+        self.followup = ctx.followup
         self.voice_channel = ctx.author.voice.channel
         self._game_in_progress = False
         self._current_round = 0
         self._round_timer: AsyncTimer | None = None
         self._voice: disnake.VoiceClient | None = None
+        self._stream: disnake.FFmpegPCMAudio | None = None
         self._game: CancellableTask | None = None
 
-    async def start_game(self, ctx: ApplicationCommandInteraction):
+    async def start_game(self):
         logging.info(
             f"Starting new game with {len(self.song_data_list)} questions in {self.voice_channel}"
         )
@@ -53,14 +54,13 @@ class QuizService:
                 await self._next_round(song.song_id)
 
         self._game = CancellableTask(_process_rounds)
-        await self.end_game(ctx)
 
     async def _next_round(self, song_id: int):
         try:
             audio_response = await self.backend.get_audio(song_id)
         except ClientError as e:
             logging.error(f"Fetching audio for song id {song_id} failed: {e}")
-            self.round_channel.send_message(
+            self.followup.send(
                 "An error occurred while loading the next song..."
             )
             await self._end_round()
@@ -79,10 +79,12 @@ class QuizService:
             self.song_data_list[self._current_round],
             # thumbnail=winner.display_avatar,  # todo: change thumbnail to the round winner's pfp (or HardBrainBot?)
         )
-        await self.round_channel.send(embed=embed)
-        if self._voice.is_playing():
+        await self.followup.send(embed=embed)
+        if self._voice and self._voice.is_playing():
             self._voice.stop()
-        self._stream.cleanup()
+        if self._stream:
+            self._stream.cleanup()
+        self._current_round += 1
 
     async def check_answer(self, answer: str):
         current_song = self.song_data_list[self._current_round]
@@ -91,27 +93,30 @@ class QuizService:
             self._round_timer.cancel()
             await self._end_round()
 
-    async def end_game(self, ctx: ApplicationCommandInteraction):
+    async def end_game(self):
         logging.info(
             f"Ending game with {len(self.song_data_list)} questions in {self.voice_channel}"
         )
-        self._round_timer.cancel()
+        if self._round_timer:
+            self._round_timer.cancel()
         await self._end_round()
-        await ctx.response.send_message("Game ending. Thank you for playing!")
+        await self.followup.send("Game ending. Thank you for playing!")
 
         # clean up game stuff
+        self._game.cancel()
         self._game_in_progress = False
         self._current_round = 0
 
         # clean up voice
-        await self._voice.disconnect()
-        self._voice.cleanup()
+        if self._voice:
+            await self._voice.disconnect()
+            self._voice.cleanup()
 
-    async def skip_round(self, ctx: ApplicationCommandInteraction):
+    async def skip_round(self):
         logging.debug(
             f"Skipping round {self._current_round} out of {len(self.song_data_list)}..."
         )
-        await ctx.response.send_message("Skipping round...")
+        await self.followup.send("Skipping round...")
         await self._end_round()
 
     def is_in_progress(self):

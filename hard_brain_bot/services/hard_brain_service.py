@@ -21,7 +21,7 @@ class HardBrainService:
         self.use_https = use_https
         self.url = self.__set_url()
 
-    async def get_question(self, number_of_songs: int = 1) -> dict:
+    async def get_question(self, number_of_songs: int = 1) -> dict | list[dict]:
         if number_of_songs <= 0:
             raise ValueError("Number of songs requested must be greater than 0")
         async with ClientSession() as session:
