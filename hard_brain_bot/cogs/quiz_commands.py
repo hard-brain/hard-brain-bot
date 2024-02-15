@@ -12,18 +12,20 @@ from hard_brain_bot.client import HardBrain
 from hard_brain_bot.data_models.requests import SongData
 from hard_brain_bot.message_templates import embeds
 from hard_brain_bot.services.hard_brain_service import HardBrainService
+from hard_brain_bot.services.quiz_service import QuizService
 from hard_brain_bot.utils.async_helpers import AsyncTimer
 
 
 class QuizCommands(commands.Cog):
-    def __init__(self, bot: HardBrain) -> None:
+    def __init__(self, bot: HardBrain, round_time_limit: float = 30.0) -> None:
         self.bot = bot
         self.round_channel = None
-        self.round_time_limit = 30.0
+        self.round_time_limit = round_time_limit
         self.round_timer: threading.Timer | None = None
         self.current_round: SongData | None = None
         self.voice: VoiceClient | None = None
         self.backend = HardBrainService()
+        self.game: QuizService | None = None
 
     @commands.Cog.listener()
     async def on_message(self, ctx: disnake.Message) -> None:
@@ -92,6 +94,7 @@ class QuizCommands(commands.Cog):
             f"Quiz starting in #{connected.channel}! "
             f"You have {int(self.round_time_limit)} seconds to answer the name of the song."
         )
+        # self.game = QuizService(ctx, self.backend, question_response)
         if platform.system() != "Windows":
             disnake.opus.load_opus("libopusenc.so.0")
         self.round_channel = ctx.channel
@@ -101,6 +104,14 @@ class QuizCommands(commands.Cog):
         self.voice.play(stream)
         self.round_timer = AsyncTimer(self.round_time_limit, self._end_round)
         self.round_timer.start()
+
+    @commands.slash_command(description="Cancels an ongoing quiz")
+    async def end_quiz(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+        await ctx.response.send_message("Not implemented yet...")
+
+    @commands.slash_command(description="Skip a round")
+    async def skip_round(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+        await ctx.response.send_message("Not implemented yet...")
 
 
 def setup(bot: HardBrain) -> None:
