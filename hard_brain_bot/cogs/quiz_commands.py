@@ -59,7 +59,7 @@ class QuizCommands(commands.Cog):
             )
             return
         if self.game:
-            await ctx.response.send_message("A round is already in progress!")
+            await ctx.response.send_message("A quiz is already in progress!")
             return
         await ctx.response.defer()
         await ctx.edit_original_response("Please wait, preparing a quiz...")
@@ -84,6 +84,9 @@ class QuizCommands(commands.Cog):
 
     @commands.slash_command(description="Cancels an ongoing quiz")
     async def end_quiz(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+        if not self.game:
+            await ctx.response.send_message("No quiz is in progress", ephemeral=True)
+            return
         await ctx.response.defer()
         await ctx.edit_original_response("Cancelling quiz...")
         await self.game.end_game()
@@ -92,6 +95,9 @@ class QuizCommands(commands.Cog):
 
     @commands.slash_command(description="Skip a round")
     async def skip_round(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+        if not self.game:
+            await ctx.response.send_message("No quiz is in progress", ephemeral=True)
+            return
         await ctx.response.send_message("Skipping round...")
         await self.game.skip_round()
 
