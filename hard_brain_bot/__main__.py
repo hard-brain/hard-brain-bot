@@ -16,6 +16,7 @@ if __name__ == "__main__":
         "disnake",
         os.path.abspath("discord.log"),
         "%(asctime)s:%(levelname)s:%(name)s: %(message)s",
+        "INFO",
     )
     if not (token := os.getenv("DISCORD_TOKEN")):
         raise RuntimeError("DISCORD_TOKEN environment variable is not set.")
