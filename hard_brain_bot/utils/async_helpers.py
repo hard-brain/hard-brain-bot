@@ -28,7 +28,7 @@ class AsyncTimer:
     def start(self) -> None:
         if self._is_started():
             raise RuntimeError("Tried to start an in-progress AsyncTimer")
-        if self.task.done():
+        if self.task and self.task.done():
             raise RuntimeError("Tried to start a finished AsyncTimer")
         self.task = self.loop.create_task(self._job())
 
@@ -44,7 +44,7 @@ class AsyncTimer:
             raise RuntimeError(
                 "Tried to cancel a AsyncTimer that is not running a task"
             )
-        if self.task.done():
+        if self.task and self.task.done():
             raise RuntimeError("Tried to cancel a finished AsyncTimer")
         self.task.cancel()
 
