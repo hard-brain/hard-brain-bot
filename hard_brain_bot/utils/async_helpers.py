@@ -32,13 +32,6 @@ class AsyncTimer:
             raise RuntimeError("Tried to start a finished AsyncTimer")
         self.task = self.loop.create_task(self._job())
 
-    async def timeout(self) -> None:
-        try:
-            await self.task.result()
-        except asyncio.CancelledError | asyncio.InvalidStateError:
-            # means the task is complete anyway
-            pass
-
     def cancel(self) -> None:
         if not self._is_started():
             raise RuntimeError(
