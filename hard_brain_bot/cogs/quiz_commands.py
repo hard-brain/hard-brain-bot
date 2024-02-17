@@ -58,7 +58,7 @@ class QuizCommands(commands.Cog):
                 "Error: you are not connected to a voice channel"
             )
             return
-        if self.game:
+        if self.game and self.game.is_in_progress():
             await ctx.response.send_message("A quiz is already in progress!")
             return
         await ctx.response.defer()
