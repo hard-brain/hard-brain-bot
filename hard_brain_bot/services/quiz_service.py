@@ -4,6 +4,7 @@ import platform
 import logging
 from aiohttp import ClientError
 import asyncio
+from asyncstdlib import iter as a_iter
 
 from disnake import FFmpegOpusAudio, ApplicationCommandInteraction
 
@@ -44,12 +45,14 @@ class QuizService:
         self._round_timer: AsyncTimer | None = None
         self._voice: disnake.VoiceClient | None = None
         self._stream: FFmpegOpusAudio | None = None
-        self._queue = asyncio.Queue()
 
     async def _process_rounds(self):
-        for song in self.song_data_list:
-            print(song)
-            await self._queue.put(self._next_round(song.song_id))  # todo: blocked on this
+        song_queue = a_iter(self.song_data_list)
+        async for song in song_queue:
+            await self._next_round(song.song_id)  # todo: blocked on this
+            self._current_song = song
+            await asyncio.sleep(self.round_time_limit)
+            self._current_round += 1
 
     async def start_game(self):
         logging.info(
@@ -58,6 +61,7 @@ class QuizService:
         self._voice = await self.voice_channel.connect()
         self._game_in_progress = True
         await self._process_rounds()
+        await self.end_game()
 
     async def _next_round(self, song_id: int):
         try:
@@ -76,7 +80,7 @@ class QuizService:
     async def _end_round(self):
         embed = embed_song_data(
             "Correct answer",
-            self.song_data_list[self._current_round],
+            self._current_song,
             # thumbnail=winner.display_avatar,  # todo: change thumbnail to the round winner's pfp (or HardBrainBot?)
         )
         await self.followup.send(embed=embed)
@@ -84,10 +88,9 @@ class QuizService:
             self._voice.stop()
         if isinstance(self._stream, FFmpegOpusAudio):
             self._stream.cleanup()
-        self._current_round += 1
 
     async def check_answer(self, answer: str):
-        current_song = self.song_data_list[self._current_round]
+        current_song = self._current_song
         logging.debug(f"Checking answer {answer} for song id {current_song.song_id}")
         if current_song.is_correct_answer(answer):
             self._round_timer.cancel()
@@ -97,9 +100,13 @@ class QuizService:
         logging.info(
             f"Ending game with {len(self.song_data_list)} questions in {self.voice_channel}"
         )
-        if self._round_timer:
-            self._round_timer.cancel()
-        await self._end_round()
+        if self._round_timer and not self._round_timer.is_executed():
+            try:
+                self._round_timer.cancel()
+            except RuntimeError as e:
+                logging.warning(e)
+        if self._current_song:
+            await self._end_round()
         await self.followup.send("Game ending. Thank you for playing!")
 
         # clean up game stuff

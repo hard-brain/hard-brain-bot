@@ -17,8 +17,11 @@ class AsyncTimer:
         self.task: asyncio.Task | None = None
         self._is_executed = False
 
-    def _is_started(self) -> bool:
+    def is_started(self) -> bool:
         return isinstance(self.task, asyncio.Task)
+
+    def is_executed(self) -> bool:
+        return self._is_executed
 
     async def _job(self) -> None:
         await asyncio.sleep(self.timer_timeout)
@@ -26,14 +29,14 @@ class AsyncTimer:
         self._is_executed = True
 
     def start(self) -> None:
-        if self._is_started():
+        if self.is_started():
             raise RuntimeError("Tried to start an in-progress AsyncTimer")
         if self.task and self.task.done():
             raise RuntimeError("Tried to start a finished AsyncTimer")
         self.task = self.loop.create_task(self._job())
 
     def cancel(self) -> None:
-        if not self._is_started():
+        if not self.is_started():
             raise RuntimeError(
                 "Tried to cancel a AsyncTimer that is not running a task"
             )
