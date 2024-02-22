@@ -16,6 +16,7 @@ class AsyncTimer:
         self.timer_timeout = timer_timeout
         self.task: asyncio.Task | None = None
         self._is_executed = False
+        # self._event = asyncio.Event()  # commented out until we can figure out how to use it
 
     def is_started(self) -> bool:
         return isinstance(self.task, asyncio.Task)
@@ -34,6 +35,7 @@ class AsyncTimer:
         if self.task and self.task.done():
             raise RuntimeError("Tried to start a finished AsyncTimer")
         self.task = self.loop.create_task(self._job())
+        # self._event.set()
 
     def cancel(self) -> None:
         if not self.is_started():
@@ -43,6 +45,10 @@ class AsyncTimer:
         if self.task and self.task.done():
             raise RuntimeError("Tried to cancel a finished AsyncTimer")
         self.task.cancel()
+        # self._event.clear()
+
+    # async def timeout(self) -> None:
+    #     await self._event.wait()
 
 
 class CancellableTask:

@@ -1,10 +1,10 @@
+import asyncio
+
 import disnake
 import io
 import platform
 import logging
 from aiohttp import ClientError
-import asyncio
-from asyncstdlib import iter as a_iter
 
 from disnake import FFmpegOpusAudio, ApplicationCommandInteraction
 
@@ -40,19 +40,16 @@ class QuizService:
         self.followup = ctx.followup
         self.voice_channel = ctx.author.voice.channel
         self._game_in_progress = False
-        self._current_round = 1
         self._current_song: SongData | None = None
         self._round_timer: AsyncTimer | None = None
         self._voice: disnake.VoiceClient | None = None
         self._stream: FFmpegOpusAudio | None = None
+        self._tasks: list = []
 
     async def _process_rounds(self):
-        song_queue = a_iter(self.song_data_list)
-        async for song in song_queue:
-            await self._next_round(song.song_id)  # todo: blocked on this
-            self._current_song = song
-            await asyncio.sleep(self.round_time_limit)
-            self._current_round += 1
+        self._tasks = [self._next_round(song) for song in self.song_data_list]
+        for task in self._tasks:
+            await asyncio.create_task(task)
 
     async def start_game(self):
         logging.info(
@@ -63,19 +60,22 @@ class QuizService:
         await self._process_rounds()
         await self.end_game()
 
-    async def _next_round(self, song_id: int):
+    async def _next_round(self, song: SongData):
         try:
-            audio_response = await self.backend.get_audio(song_id)
+            audio_response = await self.backend.get_audio(song.song_id)
         except ClientError as e:
-            logging.error(f"Fetching audio for song id {song_id} failed: {e}")
+            logging.error(f"Fetching audio for song id {song.song_id} failed: {e}")
             self.followup.send("An error occurred while loading the next song...")
             await self._end_round()
             return
         song_bytes = io.BytesIO(audio_response)
+        self._current_song = song
         self._stream = FFmpegOpusAudio(song_bytes, pipe=True)
         self._voice.play(self._stream)
         self._round_timer = AsyncTimer(self.round_time_limit, self._end_round)
         self._round_timer.start()
+        # await self._round_timer.timeout()  # todo: make this work so we can cancel the round
+        await asyncio.sleep(self.round_time_limit)
 
     async def _end_round(self):
         embed = embed_song_data(
@@ -84,6 +84,7 @@ class QuizService:
             # thumbnail=winner.display_avatar,  # todo: change thumbnail to the round winner's pfp (or HardBrainBot?)
         )
         await self.followup.send(embed=embed)
+        self._current_song = None
         if self._voice and self._voice.is_playing():
             self._voice.stop()
         if isinstance(self._stream, FFmpegOpusAudio):
@@ -91,8 +92,8 @@ class QuizService:
 
     async def check_answer(self, answer: str):
         current_song = self._current_song
-        logging.debug(f"Checking answer {answer} for song id {current_song.song_id}")
-        if current_song.is_correct_answer(answer):
+        if current_song is not None and current_song.is_correct_answer(answer):
+            logging.debug(f"Checking answer {answer} for song id {current_song.song_id}")
             self._round_timer.cancel()
             await self._end_round()
 
@@ -111,7 +112,7 @@ class QuizService:
 
         # clean up game stuff
         self._game_in_progress = False
-        self._current_round = 1
+        self._tasks = []
 
         # clean up voice
         if self._voice:
@@ -120,7 +121,7 @@ class QuizService:
 
     async def skip_round(self):
         logging.info(
-            f"Skipping round {self._current_round} out of {len(self.song_data_list)}..."
+            f"Skipping round..."
         )
         await self.followup.send("Skipping round...")
         await self._end_round()
