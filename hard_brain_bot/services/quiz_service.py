@@ -74,8 +74,7 @@ class QuizService:
         self._voice.play(self._stream)
         self._round_timer = AsyncTimer(self.round_time_limit, self._end_round)
         self._round_timer.start()
-        # await self._round_timer.timeout()  # todo: make this work so we can cancel the round
-        await asyncio.sleep(self.round_time_limit)
+        await self._round_timer.timeout()  # todo: make this work so we can cancel the round
 
     async def _end_round(self):
         embed = embed_song_data(
@@ -104,7 +103,7 @@ class QuizService:
         if self._round_timer and not self._round_timer.is_executed():
             try:
                 self._round_timer.cancel()
-            except RuntimeError as e:
+            except RuntimeWarning as e:
                 logging.warning(e)
         if self._current_song:
             await self._end_round()

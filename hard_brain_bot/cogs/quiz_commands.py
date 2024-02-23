@@ -81,6 +81,7 @@ class QuizCommands(commands.Cog):
             round_time_limit=time_limit,
         )
         await self.game.start_game()
+        self.game = None  # will have to investigate whether all tasks get cleaned up before we call this command
 
     @commands.slash_command(description="Cancels an ongoing quiz")
     async def end_quiz(self, ctx: disnake.ApplicationCommandInteraction) -> None:
@@ -91,7 +92,7 @@ class QuizCommands(commands.Cog):
         await ctx.edit_original_response("Cancelling quiz...")
         await self.game.end_game()
         await ctx.edit_original_response("Cancelled quiz")
-        self.game = None  # will have to investigate whether all tasks get cleaned up before we call this command
+        self.game = None
 
     @commands.slash_command(description="Skip a round")
     async def skip_round(self, ctx: disnake.ApplicationCommandInteraction) -> None:
