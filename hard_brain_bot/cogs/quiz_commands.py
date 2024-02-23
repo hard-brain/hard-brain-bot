@@ -13,6 +13,12 @@ from hard_brain_bot.services.quiz_service import QuizService
 
 
 class QuizCommands(commands.Cog):
+
+    MIN_TIME_LIMIT: float = 5.0
+    MAX_TIME_LIMIT: float = 5.0
+    MIN_ROUNDS: int = 1
+    MAX_ROUNDS: int = 100
+
     def __init__(self, bot: HardBrain) -> None:
         self.bot = bot
         self.voice: VoiceClient | None = None
@@ -60,6 +66,21 @@ class QuizCommands(commands.Cog):
             return
         if self.game and self.game.is_in_progress():
             await ctx.response.send_message("A quiz is already in progress!")
+            return
+        if (
+            time_limit < QuizCommands.MIN_TIME_LIMIT
+            or time_limit > QuizCommands.MAX_TIME_LIMIT
+        ):
+            await ctx.response.send_message(
+                "Invalid time limit. Time limit must be between %d and %d seconds."
+                % (QuizCommands.MIN_TIME_LIMIT, QuizCommands.MAX_TIME_LIMIT)
+            )
+            return
+        if rounds < QuizCommands.MIN_ROUNDS or rounds > QuizCommands.MAX_ROUNDS:
+            await ctx.response.send_message(
+                "Invalid number of rounds. Number of rounds must be between %d and %d"
+                % (QuizCommands.MIN_ROUNDS, QuizCommands.MAX_ROUNDS)
+            )
             return
         await ctx.response.defer()
         await ctx.edit_original_response("Please wait, preparing a quiz...")
