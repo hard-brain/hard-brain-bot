@@ -11,7 +11,8 @@ from disnake import FFmpegOpusAudio, ApplicationCommandInteraction
 from hard_brain_bot.data_models.requests import SongData
 from hard_brain_bot.utils.async_helpers import AsyncTimer
 from hard_brain_bot.services.hard_brain_service import HardBrainService
-from hard_brain_bot.message_templates.embeds import embed_song_data
+from hard_brain_bot.services.scoring_service import ScoringService
+from hard_brain_bot.message_templates.embeds import embed_song_data, embed_scores
 
 
 class QuizService:
@@ -37,6 +38,7 @@ class QuizService:
             logging.error("Could not load the opus shared library")
         self.backend = backend
         self.song_data_list = list(map(lambda props: SongData(**props), song_data_list))
+        self.score_service = ScoringService()
         self.followup = ctx.followup
         self.voice_channel = ctx.author.voice.channel
         self._game_in_progress = False
@@ -78,14 +80,18 @@ class QuizService:
 
     async def _end_round(self, ctx: disnake.Message | None = None):
         winner: disnake.Member | disnake.User | None = None
+        points = 3
         if ctx:
             winner = ctx.author
-        winner_name = winner.name if winner else "No one"
+            self.score_service.add_points(winner.display_name, points)
+        winner_name = winner.display_name if winner else "No one"
         embed = embed_song_data(
             title=f"{winner_name} got the correct answer{'' if winner else '...'}",
             song_data=self._current_song,
             thumbnail=winner.display_avatar if winner else None,
         )
+        if winner:
+            embed.description = f"{points} points go to {winner.display_name}"
         await self.followup.send(embed=embed)
         self._current_song = None
         await self._cleanup_voice()
@@ -108,7 +114,12 @@ class QuizService:
                 self._round_timer.cancel()
             except RuntimeWarning as e:
                 logging.warning(e)
-        await self.followup.send("Game ending. Thank you for playing!")
+        await self.followup.send(
+            embed=embed_scores(
+                self.score_service.get_scores(),
+                title="Game ending. Thank you for playing!",
+            )
+        )
 
         # clean up game stuff
         self._game_in_progress = False
@@ -122,6 +133,9 @@ class QuizService:
         logging.info(f"Skipping round...")
         await self.followup.send("Skipping round...")
         await self._end_round()
+
+    def current_scores(self):
+        return self.score_service.get_scores()
 
     def is_in_progress(self):
         return self._game_in_progress

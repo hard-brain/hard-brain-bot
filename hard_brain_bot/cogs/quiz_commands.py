@@ -123,6 +123,16 @@ class QuizCommands(commands.Cog):
         await ctx.response.send_message("Skipping round...")
         await self.game.skip_round()
 
+    @commands.slash_command(description="Get the current scores")
+    async def current_scores(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+        if not self.game:
+            await ctx.response.send_message("No quiz is in progress", ephemeral=True)
+            return
+        scores = self.game.current_scores()
+        await ctx.response.send_message(
+            embed=embeds.embed_scores(scores, title="Current Scores")
+        )
+
 
 def setup(bot: HardBrain) -> None:
     bot.add_cog(QuizCommands(bot))
