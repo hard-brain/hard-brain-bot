@@ -23,7 +23,7 @@ class QuizCommands(commands.Cog):
     async def on_message(self, ctx: disnake.Message) -> None:
         if not self.game or ctx.author == self.bot.user.id:
             return
-        await self.game.check_answer(ctx.content)
+        await self.game.check_answer(ctx)
 
     @commands.slash_command(description="More information about Hard Brain")
     async def about(self, ctx: disnake.ApplicationCommandInteraction) -> None:
