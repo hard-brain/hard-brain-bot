@@ -38,8 +38,8 @@ def embed_scores(scores: Counter, title: str = "Scores") -> Embed:
     embed = Embed(title=title)
     player_limit = min(5, len(scores))
     players = [
-        f"#{rank}: {player} - `{score}`"
-        for rank, player, score in enumerate(scores.most_common(5))
+        f"#{rank}: {player_score[0]} - `{player_score[1]}`"
+        for rank, player_score in enumerate(scores.most_common(5), 1)
     ]
     field_name = (
         # "Top n player(s)"
