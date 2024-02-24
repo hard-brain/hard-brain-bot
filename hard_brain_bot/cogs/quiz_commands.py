@@ -15,7 +15,7 @@ from hard_brain_bot.services.quiz_service import QuizService
 class QuizCommands(commands.Cog):
 
     MIN_TIME_LIMIT: float = 5.0
-    MAX_TIME_LIMIT: float = 5.0
+    MAX_TIME_LIMIT: float = 60.0
     MIN_ROUNDS: int = 1
     MAX_ROUNDS: int = 100
 
