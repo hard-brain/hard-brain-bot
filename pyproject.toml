@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hard-brain-bot"
-version = "0.2.4"
+version = "0.2.5"
 description = ""
 authors = ["Nathan <101812777+corndogit@users.noreply.github.com>"]
 readme = "README.md"
