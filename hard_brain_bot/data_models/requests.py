@@ -23,8 +23,13 @@ class SongData:
             return True
 
         # fuzzy match answer against correct answers
+        normalized_answer = SongData._normalize_text(answer)
         for correct_answer in self.correct_answers:
-            score = fuzz.partial_ratio(correct_answer, answer)
+            score = fuzz.token_sort_ratio(SongData._normalize_text(correct_answer), normalized_answer)
             if score >= self.similarity_threshold:
                 return True
         return False
+
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        return ''.join(e.lower() for e in text if e.isalnum())
