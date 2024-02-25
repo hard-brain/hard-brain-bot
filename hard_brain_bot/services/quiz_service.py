@@ -17,11 +17,11 @@ from hard_brain_bot.message_templates.embeds import embed_song_data, embed_score
 
 class QuizService:
     def __init__(
-        self,
-        ctx: ApplicationCommandInteraction,
-        backend: HardBrainService,
-        song_data_list: list[dict],
-        round_time_limit: float = 30.0,
+            self,
+            ctx: ApplicationCommandInteraction,
+            backend: HardBrainService,
+            song_data_list: list[dict],
+            round_time_limit: float = 30.0,
     ):
         """
         The service that manages and drives the quiz game.
@@ -79,22 +79,9 @@ class QuizService:
         await self._round_timer.timeout()
 
     async def _end_round(self, ctx: disnake.Message | None = None):
-        winner: disnake.Member | disnake.User | None = None
-        points = 3
         if self._current_song is not None:
-            if ctx:
-                winner = ctx.author
-                self.score_service.add_points(winner.display_name, points)
-            winner_name = winner.display_name if winner else "No one"
-            embed = embed_song_data(
-                title=f"{winner_name} got the correct answer{'' if winner else '...'}",
-                song_data=self._current_song,
-                thumbnail=winner.display_avatar if winner else None,
-            )
-            if winner:
-                embed.description = f"{points} points go to {winner.display_name}"
-            await self.followup.send(embed=embed)
-            self._current_song = None
+            await self._send_end_of_round_embed(ctx)
+        self._current_song = None
         await self._cleanup_voice()
 
     async def check_answer(self, ctx: disnake.Message):
@@ -146,3 +133,19 @@ class QuizService:
             self._voice.stop()
         if isinstance(self._stream, FFmpegOpusAudio):
             self._stream.cleanup()
+
+    async def _send_end_of_round_embed(self, ctx: disnake.Message):
+        winner: disnake.Member | disnake.User | None = None
+        points = 3
+        if ctx:
+            winner = ctx.author
+            self.score_service.add_points(winner.display_name, points)
+        winner_name = winner.display_name if winner else "No one"
+        embed = embed_song_data(
+            title=f"{winner_name} got the correct answer{'' if winner else '...'}",
+            song_data=self._current_song,
+            thumbnail=winner.display_avatar if winner else None,
+        )
+        if winner:
+            embed.description = f"{points} points go to {winner.display_name}"
+        await self.followup.send(embed=embed)
