@@ -4,7 +4,6 @@ import disnake
 import io
 import platform
 import logging
-from aiohttp import ClientError
 
 from disnake import FFmpegOpusAudio, ApplicationCommandInteraction
 
@@ -65,9 +64,9 @@ class QuizService:
     async def _next_round(self, song: SongData):
         try:
             audio_response = await self.backend.get_audio(song.song_id)
-        except ClientError as e:
+        except Exception as e:
             logging.error(f"Fetching audio for song id {song.song_id} failed: {e}")
-            self.followup.send("An error occurred while loading the next song...")
+            self.followup.send("An error occurred while loading the next song, skipping round")
             await self._end_round()
             return
         song_bytes = io.BytesIO(audio_response)
