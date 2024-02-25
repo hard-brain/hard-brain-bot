@@ -38,9 +38,13 @@ class AsyncTimer:
 
     async def _job(self) -> None:
         await asyncio.sleep(self.timer_timeout)
-        await self.callback(*self.args, **self.kwargs)
-        self._is_executed = True
-        self._event.set()
+        try:
+            await self.callback(*self.args, **self.kwargs)
+        except Exception as e:
+            raise e
+        finally:
+            self._is_executed = True
+            self._event.set()
 
     def start(self) -> None:
         """
