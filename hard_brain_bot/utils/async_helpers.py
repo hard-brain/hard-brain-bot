@@ -54,7 +54,11 @@ class AsyncTimer:
             raise RuntimeWarning("Tried to start an in-progress AsyncTimer")
         if self.task and self.task.done():
             raise RuntimeWarning("Tried to start a finished AsyncTimer")
-        self.task = self.loop.create_task(self._job())
+        try:
+            self.task = self.loop.create_task(self._job())
+        except Exception as e:
+            task_exception = self.task.exception()
+            raise RuntimeError(f"Encountered {type(e)} while running task: {task_exception}")
 
     def cancel(self) -> None:
         """
