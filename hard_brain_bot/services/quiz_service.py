@@ -81,19 +81,20 @@ class QuizService:
     async def _end_round(self, ctx: disnake.Message | None = None):
         winner: disnake.Member | disnake.User | None = None
         points = 3
-        if ctx:
-            winner = ctx.author
-            self.score_service.add_points(winner.display_name, points)
-        winner_name = winner.display_name if winner else "No one"
-        embed = embed_song_data(
-            title=f"{winner_name} got the correct answer{'' if winner else '...'}",
-            song_data=self._current_song,
-            thumbnail=winner.display_avatar if winner else None,
-        )
-        if winner:
-            embed.description = f"{points} points go to {winner.display_name}"
-        await self.followup.send(embed=embed)
-        self._current_song = None
+        if self._current_song is not None:
+            if ctx:
+                winner = ctx.author
+                self.score_service.add_points(winner.display_name, points)
+            winner_name = winner.display_name if winner else "No one"
+            embed = embed_song_data(
+                title=f"{winner_name} got the correct answer{'' if winner else '...'}",
+                song_data=self._current_song,
+                thumbnail=winner.display_avatar if winner else None,
+            )
+            if winner:
+                embed.description = f"{points} points go to {winner.display_name}"
+            await self.followup.send(embed=embed)
+            self._current_song = None
         await self._cleanup_voice()
 
     async def check_answer(self, ctx: disnake.Message):
