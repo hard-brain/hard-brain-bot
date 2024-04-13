@@ -2,6 +2,6 @@ services:
   bot:
     build:
       context: .
-      dockerfile: "standard.Dockerfile"
+      dockerfile: "Dockerfile"
     container_name: bot
     env_file: ./.env
