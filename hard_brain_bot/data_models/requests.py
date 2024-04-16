@@ -10,7 +10,7 @@ class SongData:
     alt_titles: list[str]
     genre: str
     artist: str
-    similarity_threshold = 90  # todo: should we be able to configure this?
+    similarity_threshold = 85  # todo: should we be able to configure this?
 
     def __post_init__(self) -> None:
         self.correct_answers = set(
