@@ -11,7 +11,7 @@ async def request_json(
     if not params:
         params = {}
     async with session.request(method, url, params=params) as response:
-        return await response.json()
+        return await response.json(content_type=None)
 
 
 async def request_bytes(
