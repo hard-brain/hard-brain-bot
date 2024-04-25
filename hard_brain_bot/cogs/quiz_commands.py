@@ -27,7 +27,7 @@ class QuizCommands(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, ctx: disnake.Message) -> None:
-        if not self.game or ctx.author == self.bot.user.id:
+        if not self.game or ctx.author.id == self.bot.user.id:
             return
         await self.game.check_answer(ctx)
 

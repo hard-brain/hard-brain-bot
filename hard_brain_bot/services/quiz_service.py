@@ -14,6 +14,17 @@ from hard_brain_bot.services.scoring_service import ScoringService
 from hard_brain_bot.message_templates.embeds import embed_song_data, embed_scores
 
 
+def _process_song_data_from_props(song_data_list):
+    song_data_map = map(lambda props: SongData(
+        song_id=props["song_id"],
+        filename=props["filename"],
+        title=props["title"],
+        alt_titles=props["alt_titles"].split(", "),
+        genre=props["genre"],
+        artist=props["artist"]), song_data_list)
+    return list(song_data_map)
+
+
 class QuizService:
     def __init__(
             self,
@@ -36,7 +47,7 @@ class QuizService:
         except OSError:
             logging.error("Could not load the opus shared library")
         self.backend = backend
-        self.song_data_list = list(map(lambda props: SongData(**props), song_data_list))
+        self.song_data_list = _process_song_data_from_props(song_data_list)
         self.score_service = ScoringService()
         self.followup = ctx.followup
         self.voice_channel = ctx.author.voice.channel
@@ -62,6 +73,8 @@ class QuizService:
         await self.end_game()
 
     async def _next_round(self, song: SongData):
+        while self._voice.is_playing():
+            await asyncio.sleep(0.05)
         try:
             audio_response = await self.backend.get_audio(song.song_id)
         except Exception as e:
@@ -118,7 +131,7 @@ class QuizService:
 
     async def skip_round(self):
         logging.info(f"Skipping round...")
-        await self.followup.send("Skipping round...")
+        self._round_timer.cancel()
         await self._end_round()
 
     def current_scores(self):
