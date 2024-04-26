@@ -11,7 +11,7 @@ def embed_about() -> Embed:
     )
     embed.add_field(
         name="Commands",
-        value="`about`, `start_quiz`",
+        value="`about`, `start_quiz`, `skip_round`, `end_quiz`, `current_scores`",
         inline=False,
     )
     return embed

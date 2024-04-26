@@ -6,7 +6,6 @@ from disnake.ext import commands
 from disnake.ext.commands import CommandInvokeError
 
 from hard_brain_bot.client import HardBrain
-from hard_brain_bot.data_models.requests import SongData
 from hard_brain_bot.message_templates import embeds
 from hard_brain_bot.services.hard_brain_service import HardBrainService
 from hard_brain_bot.services.quiz_service import QuizService
@@ -34,21 +33,6 @@ class QuizCommands(commands.Cog):
     @commands.slash_command(description="More information about Hard Brain")
     async def about(self, ctx: disnake.ApplicationCommandInteraction) -> None:
         embed = embeds.embed_about()
-        await ctx.response.send_message(embed=embed)
-
-    @commands.slash_command(description="Test command to fetch data for a random song")
-    async def debug_song(self, ctx: disnake.ApplicationCommandInteraction) -> None:
-        fixture = SongData(
-            song_id=30999,
-            filename="test.mp3",
-            title="TEST!! がんばって！！",
-            alt_titles=["test!!", "test ganbatte"],
-            artist="DJ TEST",
-            genre="testcore",
-        )
-        embed = embeds.embed_song_data(
-            "Example song data embed", fixture, thumbnail=self.bot.user.display_avatar
-        )
         await ctx.response.send_message(embed=embed)
 
     @commands.slash_command(description="Starts a quiz")
@@ -102,7 +86,7 @@ class QuizCommands(commands.Cog):
             round_time_limit=time_limit,
         )
         await self.game.start_game()
-        self.game = None  # will have to investigate whether all tasks get cleaned up before we call this command
+        self.game = None
 
     @commands.slash_command(description="Cancels an ongoing quiz")
     async def end_quiz(self, ctx: disnake.ApplicationCommandInteraction) -> None:
