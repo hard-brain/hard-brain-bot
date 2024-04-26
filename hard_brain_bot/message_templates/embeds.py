@@ -30,7 +30,14 @@ def embed_song_data(
     embed.add_field(name="Genre", value=song_data.genre, inline=False)
     if len(song_data.alt_titles) > 0 and len(song_data.alt_titles[0]) > 0:
         titles = [f"`{title}`" for title in song_data.alt_titles]
-        embed.add_field(name="Alternate titles", value=", ".join(titles), inline=False)
+        embed.add_field(name="Alternate Titles", value=", ".join(titles), inline=False)
+    embed.add_field(name="Game Version", value=song_data.version, inline=False)
+    return embed
+
+
+def embed_round_start(current_round: int, total_rounds: int) -> Embed:
+    # todo: print at start of rounds
+    embed = Embed(title=f"Round {current_round}/{total_rounds}")
     return embed
 
 
