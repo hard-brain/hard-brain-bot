@@ -13,9 +13,9 @@ class SongData:
     similarity_threshold = 85  # todo: should we be able to configure this?
 
     def __post_init__(self) -> None:
-        self.correct_answers = set(
-            map(lambda s: s.lower(), (self.title, *self.alt_titles))
-        )
+        alt_titles = list(filter(lambda a: len(a) != 0, self.alt_titles))
+        correct_answers = set(map(lambda s: s.lower(), (self.title, *alt_titles)))
+        self.correct_answers = correct_answers
 
     def is_correct_answer(self, answer: str) -> bool:
         # fast check if answer is in alt_titles
@@ -26,7 +26,7 @@ class SongData:
         normalized_answer = SongData._normalize_text(answer)
         for correct_answer in self.correct_answers:
             score = fuzz.token_sort_ratio(SongData._normalize_text(correct_answer), normalized_answer)
-            if score >= self.similarity_threshold:
+            if len(correct_answer) > 0 and score >= self.similarity_threshold:
                 return True
         return False
 
