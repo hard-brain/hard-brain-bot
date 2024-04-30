@@ -33,7 +33,7 @@ class HardBrainService:
                 "GET", f"{self.url}/question", session
             )
 
-    async def get_audio(self, song_id: int) -> bytes:
+    async def get_audio(self, song_id: str) -> bytes:
         async with ClientSession() as session:
             return await http_requests.request_bytes(
                 "GET",
