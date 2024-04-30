@@ -5,7 +5,7 @@ from hard_brain_bot.utils import setup_logging
 
 
 if __name__ == "__main__":
-    bot = HardBrain(debug=True)
+    bot = HardBrain()
     bot.load_extension("hard_brain_bot.cogs.quiz_commands")
 
     @bot.event
