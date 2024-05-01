@@ -5,7 +5,7 @@ import io
 import platform
 import logging
 
-from disnake import FFmpegOpusAudio, ApplicationCommandInteraction, Webhook, ClientException
+from disnake import FFmpegOpusAudio, ApplicationCommandInteraction, Webhook
 
 from hard_brain_bot.data_models.requests import SongData
 from hard_brain_bot.utils.async_helpers import AsyncTimer
@@ -93,15 +93,12 @@ class QuizService:
             logging.debug("game has ended, skipping this round")
             return
 
-        try:
-            song_bytes = io.BytesIO(audio_response)
-            self._current_song = song
-            self._stream = FFmpegOpusAudio(song_bytes, pipe=True)
-            self._voice.play(self._stream)
-            self._round_timer = AsyncTimer(self.round_time_limit, self._end_round)
-            self._round_timer.start()
-        except (OSError, BrokenPipeError, ClientException):
-            logging.debug("ignoring exceptions from playing audio")
+        song_bytes = io.BytesIO(audio_response)
+        self._current_song = song
+        self._stream = FFmpegOpusAudio(song_bytes, pipe=True)
+        self._voice.play(self._stream)
+        self._round_timer = AsyncTimer(self.round_time_limit, self._end_round)
+        self._round_timer.start()
 
         await self.webhook.send(
             embed=embeds.embed_round_start(
@@ -173,7 +170,7 @@ class QuizService:
 
     async def _send_end_of_round_embed(self, ctx: disnake.Message):
         winner: disnake.Member | disnake.User | None = None
-        points = 3
+        points = 10
         if ctx:
             winner = ctx.author
             self.score_service.add_points(winner.display_name, points)
