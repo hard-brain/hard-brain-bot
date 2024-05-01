@@ -35,9 +35,9 @@ def embed_song_data(
     return embed
 
 
-def embed_round_start(current_round: int, total_rounds: int) -> Embed:
-    # todo: print at start of rounds
-    embed = Embed(title=f"Round {current_round}/{total_rounds}")
+def embed_round_start(current_round: int, total_rounds: int, time_limit: float) -> Embed:
+    embed = Embed(title=f"Round {current_round}/{total_rounds}",
+                  description=f"You have {int(time_limit)} seconds to type the name of the song")
     return embed
 
 

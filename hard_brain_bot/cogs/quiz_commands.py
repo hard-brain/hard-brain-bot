@@ -1,7 +1,8 @@
 import logging
 
 import disnake
-from disnake import VoiceClient
+from aiohttp import ClientConnectorError
+from disnake import VoiceClient, Webhook
 from disnake.ext import commands
 from disnake.ext.commands import CommandInvokeError
 
@@ -12,7 +13,6 @@ from hard_brain_bot.services.quiz_service import QuizService
 
 
 class QuizCommands(commands.Cog):
-
     MIN_TIME_LIMIT: float = 5.0
     MAX_TIME_LIMIT: float = 60.0
     MIN_ROUNDS: int = 1
@@ -23,10 +23,11 @@ class QuizCommands(commands.Cog):
         self.voice: VoiceClient | None = None
         self.backend = HardBrainService()
         self.game: QuizService | None = None
+        self.webhook: Webhook | None = None
 
     @commands.Cog.listener()
     async def on_message(self, ctx: disnake.Message) -> None:
-        if not self.game or ctx.author.id == self.bot.user.id:
+        if (not self.game) or (ctx.author.id == self.bot.user.id):
             return
         await self.game.check_answer(ctx)
 
@@ -37,56 +38,67 @@ class QuizCommands(commands.Cog):
 
     @commands.slash_command(description="Starts a quiz")
     async def start_quiz(
-        self,
-        ctx: disnake.ApplicationCommandInteraction,
-        rounds: int = 5,
-        time_limit: float = 30.0,
+            self,
+            ctx: disnake.ApplicationCommandInteraction,
+            rounds: int = 5,
+            time_limit: float = 30.0,
     ) -> None:
         # check user is in voice channel
-        if not (connected := ctx.author.voice):
+        if not ctx.author.voice:
             await ctx.response.send_message(
-                "Error: you are not connected to a voice channel"
+                "Error: you are not connected to a voice channel", ephemeral=True
             )
             return
         if self.game and self.game.is_in_progress():
-            await ctx.response.send_message("A quiz is already in progress!")
+            await ctx.response.send_message("A quiz is already in progress!", ephemeral=True)
             return
         if (
-            time_limit < QuizCommands.MIN_TIME_LIMIT
-            or time_limit > QuizCommands.MAX_TIME_LIMIT
+                time_limit < QuizCommands.MIN_TIME_LIMIT
+                or time_limit > QuizCommands.MAX_TIME_LIMIT
         ):
             await ctx.response.send_message(
                 "Invalid time limit. Time limit must be between %d and %d seconds."
-                % (QuizCommands.MIN_TIME_LIMIT, QuizCommands.MAX_TIME_LIMIT)
+                % (QuizCommands.MIN_TIME_LIMIT, QuizCommands.MAX_TIME_LIMIT),
+                ephemeral=True
             )
             return
         if rounds < QuizCommands.MIN_ROUNDS or rounds > QuizCommands.MAX_ROUNDS:
             await ctx.response.send_message(
                 "Invalid number of rounds. Number of rounds must be between %d and %d"
-                % (QuizCommands.MIN_ROUNDS, QuizCommands.MAX_ROUNDS)
+                % (QuizCommands.MIN_ROUNDS, QuizCommands.MAX_ROUNDS),
+                ephemeral=True
             )
             return
+
         await ctx.response.defer()
         await ctx.edit_original_response("Please wait, preparing a quiz...")
         try:
             question_response = await self.backend.get_question(number_of_songs=rounds)
-        except CommandInvokeError as e:
+        except (CommandInvokeError, ClientConnectorError) as e:
             logging.error(e)
-            await ctx.edit_original_response(f"Error occurred while preparing quiz...")
+            await ctx.edit_original_response(f"Network error occurred while preparing quiz...")
             return
 
-        await ctx.edit_original_response(
-            f"Quiz starting in #{connected.channel}! "
-            f"You have {int(time_limit)} seconds to answer the name of the song."
+        self.webhook = await ctx.channel.create_webhook(
+            name="Hard Brain",
+            avatar=self.bot.user.avatar,
+            reason="Created by Hard Brain and should be removed automatically - "
+                   "if it persists when the quiz is not running, feel free to delete"
         )
+
         self.game = QuizService(
             ctx,
+            self.webhook,
             self.backend,
             song_data_list=question_response,
             round_time_limit=time_limit,
         )
-        await self.game.start_game()
-        self.game = None
+        try:
+            await self.game.start_game()
+        finally:
+            if self.webhook:
+                await self.webhook.delete()
+            self.game = None
 
     @commands.slash_command(description="Cancels an ongoing quiz")
     async def end_quiz(self, ctx: disnake.ApplicationCommandInteraction) -> None:
@@ -95,7 +107,7 @@ class QuizCommands(commands.Cog):
             return
         await ctx.response.defer()
         await ctx.edit_original_response("Cancelling quiz...")
-        await self.game.end_game()
+        await self.game.end_game(show_embed=False)
         await ctx.edit_original_response("Cancelled quiz")
         self.game = None
 

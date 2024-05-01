@@ -5,13 +5,13 @@ import io
 import platform
 import logging
 
-from disnake import FFmpegOpusAudio, ApplicationCommandInteraction
+from disnake import FFmpegOpusAudio, ApplicationCommandInteraction, Webhook, ClientException
 
 from hard_brain_bot.data_models.requests import SongData
 from hard_brain_bot.utils.async_helpers import AsyncTimer
 from hard_brain_bot.services.hard_brain_service import HardBrainService
 from hard_brain_bot.services.scoring_service import ScoringService
-from hard_brain_bot.message_templates.embeds import embed_song_data, embed_scores
+from hard_brain_bot.message_templates import embeds
 
 
 def _process_song_data_from_props(song_data_list):
@@ -29,6 +29,7 @@ class QuizService:
     def __init__(
             self,
             ctx: ApplicationCommandInteraction,
+            webhook: Webhook,
             backend: HardBrainService,
             song_data_list: list[dict],
             round_time_limit: float = 30.0,
@@ -36,6 +37,7 @@ class QuizService:
         """
         The service that manages and drives the quiz game.
         :param ctx: The Discord interaction that triggered the start of a game.
+        :param webhook: Webhook through which to send messages to the channel.
         :param backend: Application HardBrainService instance.
         :param song_data_list: A list of SongData to use in the game.
         :param round_time_limit: Maximum round time in seconds.
@@ -49,24 +51,28 @@ class QuizService:
         self.backend = backend
         self.song_data_list = _process_song_data_from_props(song_data_list)
         self.score_service = ScoringService()
-        self.followup = ctx.followup
+        self.webhook = webhook
         self.voice_channel = ctx.author.voice.channel
+        self.text_channel = ctx.channel
         self._game_in_progress = False
         self._current_song: SongData | None = None
         self._round_timer: AsyncTimer | None = None
         self._voice: disnake.VoiceClient | None = None
         self._stream: FFmpegOpusAudio | None = None
         self._tasks: list = []
+        self._current_round = 1
 
     async def _process_rounds(self):
         self._tasks = [self._next_round(song) for song in self.song_data_list]
         for task in self._tasks:
             await asyncio.create_task(task)
+            self._current_round += 1
 
     async def start_game(self):
         logging.info(
             f"Starting new game with {len(self.song_data_list)} questions in {self.voice_channel}"
         )
+        await self.webhook.send(f"Quiz starting in #{self.voice_channel} with {len(self.song_data_list)} rounds!")
         self._voice = await self.voice_channel.connect()
         self._game_in_progress = True
         await self._process_rounds()
@@ -79,15 +85,30 @@ class QuizService:
             audio_response = await self.backend.get_audio(song.song_id)
         except Exception as e:
             logging.error(f"Fetching audio for song id {song.song_id} failed: {e}")
-            self.followup.send("An error occurred while loading the next song, skipping round")
+            await self.webhook.send("An error occurred while loading the next song, skipping round")
             await self._end_round()
             return
-        song_bytes = io.BytesIO(audio_response)
-        self._current_song = song
-        self._stream = FFmpegOpusAudio(song_bytes, pipe=True)
-        self._voice.play(self._stream)
-        self._round_timer = AsyncTimer(self.round_time_limit, self._end_round)
-        self._round_timer.start()
+
+        if not self._game_in_progress:
+            logging.debug("game has ended, skipping this round")
+            return
+
+        try:
+            song_bytes = io.BytesIO(audio_response)
+            self._current_song = song
+            self._stream = FFmpegOpusAudio(song_bytes, pipe=True)
+            self._voice.play(self._stream)
+            self._round_timer = AsyncTimer(self.round_time_limit, self._end_round)
+            self._round_timer.start()
+        except (OSError, BrokenPipeError, ClientException):
+            logging.debug("ignoring exceptions from playing audio")
+
+        await self.webhook.send(
+            embed=embeds.embed_round_start(
+                current_round=self._current_round,
+                total_rounds=len(self.song_data_list),
+                time_limit=self.round_time_limit
+            ))
         await self._round_timer.timeout()
 
     async def _end_round(self, ctx: disnake.Message | None = None):
@@ -97,6 +118,8 @@ class QuizService:
         await self._cleanup_voice()
 
     async def check_answer(self, ctx: disnake.Message):
+        if ctx.channel.id != self.text_channel.id:
+            return
         current_song = self._current_song
         if current_song is not None and current_song.is_correct_answer(ctx.content):
             logging.debug(
@@ -105,7 +128,7 @@ class QuizService:
             self._round_timer.cancel()
             await self._end_round(ctx)
 
-    async def end_game(self):
+    async def end_game(self, show_embed=True):
         logging.info(
             f"Ending game with {len(self.song_data_list)} questions in {self.voice_channel}"
         )
@@ -114,12 +137,14 @@ class QuizService:
                 self._round_timer.cancel()
             except RuntimeWarning as e:
                 logging.warning(e)
-        await self.followup.send(
-            embed=embed_scores(
-                self.score_service.get_scores(),
-                title="Game ending. Thank you for playing!",
+
+        if show_embed:  # this is so stupid btw
+            await self.webhook.send(
+                embed=embeds.embed_scores(
+                    self.score_service.get_scores(),
+                    title="Game ending. Thank you for playing!",
+                )
             )
-        )
 
         # clean up game stuff
         self._game_in_progress = False
@@ -153,11 +178,11 @@ class QuizService:
             winner = ctx.author
             self.score_service.add_points(winner.display_name, points)
         winner_name = winner.display_name if winner else "No one"
-        embed = embed_song_data(
+        embed = embeds.embed_song_data(
             title=f"{winner_name} got the correct answer{'' if winner else '...'}",
             song_data=self._current_song,
             thumbnail=winner.display_avatar if winner else None,
         )
         if winner:
             embed.description = f"{points} points go to {winner.display_name}"
-        await self.followup.send(embed=embed)
+        await self.webhook.send(embed=embed)
