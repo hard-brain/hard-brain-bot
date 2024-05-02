@@ -1,5 +1,8 @@
 import asyncio
+from collections import namedtuple
 from typing import Callable, Any
+
+from hard_brain_bot.data_models.requests import SongData
 
 
 class AsyncTimer:
@@ -83,3 +86,21 @@ class AsyncTimer:
         Awaitable method that blocks the thread until the event is set, either by cancelling or timing out.
         """
         await self._event.wait()
+
+
+class AnswerQueue:
+    Input = namedtuple("Input", "current_song answer")
+
+    def __init__(self):
+        self._queue = asyncio.Queue(1)
+
+    async def queue_answer(self, current_song: SongData, answer: str):
+        await self._queue.put(AnswerQueue.Input(current_song, answer))
+
+    async def check_answer_fifo(self):
+        await asyncio.sleep(0.1)
+        if self._queue.empty():
+            return False
+
+        answer_input: AnswerQueue.Input = await self._queue.get()
+        return answer_input.current_song.is_correct_answer(answer_input.answer)

@@ -8,7 +8,7 @@ import logging
 from disnake import FFmpegOpusAudio, ApplicationCommandInteraction, Webhook, Thread
 
 from hard_brain_bot.data_models.requests import SongData
-from hard_brain_bot.utils.async_helpers import AsyncTimer
+from hard_brain_bot.utils.async_helpers import AsyncTimer, AnswerQueue
 from hard_brain_bot.services.hard_brain_service import HardBrainService
 from hard_brain_bot.services.scoring_service import ScoringService
 from hard_brain_bot.message_templates import embeds
@@ -56,15 +56,16 @@ class QuizService:
         self.text_channel = ctx.channel
         self._game_in_progress = False
         self._current_song: SongData | None = None
+        self._round_is_over = False
         self._round_timer: AsyncTimer | None = None
         self._voice: disnake.VoiceClient | None = None
         self._stream: FFmpegOpusAudio | None = None
-        self._tasks: list = []
+        self._answer_queue = AnswerQueue()
         self._current_round = 1
 
     async def _process_rounds(self):
-        self._tasks = [self._next_round(song) for song in self.song_data_list]
-        for task in self._tasks:
+        _round_tasks = [self._next_round(song) for song in self.song_data_list]
+        for task in _round_tasks:
             await asyncio.create_task(task)
             self._current_round += 1
 
@@ -95,6 +96,7 @@ class QuizService:
 
         song_bytes = io.BytesIO(audio_response)
         self._current_song = song
+        self._round_is_over = False
         self._stream = FFmpegOpusAudio(song_bytes, pipe=True)
         self._voice.play(self._stream)
         self._round_timer = AsyncTimer(self.round_time_limit, self._end_round)
@@ -121,10 +123,11 @@ class QuizService:
 
     async def _check_answer(self, ctx):
         current_song = self._current_song
-        if current_song is not None and current_song.is_correct_answer(ctx.content):
-            logging.debug(
-                f"Checking answer {ctx.content} for song id {current_song.song_id}"
-            )
+        await self._answer_queue.queue_answer(current_song, ctx.content)
+        answer_is_correct = await self._answer_queue.check_answer_fifo()
+
+        if not self._round_is_over and answer_is_correct:
+            self._round_is_over = True
             self._round_timer.cancel()
             await self._end_round(ctx)
 
@@ -148,7 +151,6 @@ class QuizService:
 
         # clean up game stuff
         self._game_in_progress = False
-        self._tasks = []
 
         # clean up voice
         await self._voice.disconnect()
