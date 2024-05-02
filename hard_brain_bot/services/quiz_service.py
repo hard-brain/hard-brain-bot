@@ -5,7 +5,7 @@ import io
 import platform
 import logging
 
-from disnake import FFmpegOpusAudio, ApplicationCommandInteraction, Webhook
+from disnake import FFmpegOpusAudio, ApplicationCommandInteraction, Webhook, Thread
 
 from hard_brain_bot.data_models.requests import SongData
 from hard_brain_bot.utils.async_helpers import AsyncTimer
@@ -29,7 +29,7 @@ class QuizService:
     def __init__(
             self,
             ctx: ApplicationCommandInteraction,
-            webhook: Webhook,
+            message_receiver: Webhook | Thread,
             backend: HardBrainService,
             song_data_list: list[dict],
             round_time_limit: float = 30.0,
@@ -37,7 +37,7 @@ class QuizService:
         """
         The service that manages and drives the quiz game.
         :param ctx: The Discord interaction that triggered the start of a game.
-        :param webhook: Webhook through which to send messages to the channel.
+        :param message_receiver: Webhook or thread through which to send messages to the channel.
         :param backend: Application HardBrainService instance.
         :param song_data_list: A list of SongData to use in the game.
         :param round_time_limit: Maximum round time in seconds.
@@ -51,7 +51,7 @@ class QuizService:
         self.backend = backend
         self.song_data_list = _process_song_data_from_props(song_data_list)
         self.score_service = ScoringService()
-        self.webhook = webhook
+        self.webhook = message_receiver
         self.voice_channel = ctx.author.voice.channel
         self.text_channel = ctx.channel
         self._game_in_progress = False
@@ -114,9 +114,12 @@ class QuizService:
         self._current_song = None
         await self._cleanup_voice()
 
-    async def check_answer(self, ctx: disnake.Message):
+    async def queue_answer_to_check(self, ctx: disnake.Message):
         if ctx.channel.id != self.text_channel.id:
             return
+        await self._check_answer(ctx)
+
+    async def _check_answer(self, ctx):
         current_song = self._current_song
         if current_song is not None and current_song.is_correct_answer(ctx.content):
             logging.debug(

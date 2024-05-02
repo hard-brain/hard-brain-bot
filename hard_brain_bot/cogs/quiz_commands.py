@@ -2,7 +2,7 @@ import logging
 
 import disnake
 from aiohttp import ClientConnectorError
-from disnake import VoiceClient, Webhook
+from disnake import VoiceClient, Webhook, Thread, TextChannel
 from disnake.ext import commands
 from disnake.ext.commands import CommandInvokeError
 
@@ -23,13 +23,13 @@ class QuizCommands(commands.Cog):
         self.voice: VoiceClient | None = None
         self.backend = HardBrainService()
         self.game: QuizService | None = None
-        self.webhook: Webhook | None = None
+        self.message_receiver: Webhook | Thread | None = None
 
     @commands.Cog.listener()
     async def on_message(self, ctx: disnake.Message) -> None:
         if (not self.game) or (ctx.author.id == self.bot.user.id):
             return
-        await self.game.check_answer(ctx)
+        await self.game.queue_answer_to_check(ctx)
 
     @commands.slash_command(description="More information about Hard Brain")
     async def about(self, ctx: disnake.ApplicationCommandInteraction) -> None:
@@ -79,16 +79,27 @@ class QuizCommands(commands.Cog):
             await ctx.edit_original_response(f"Network error occurred while preparing quiz...")
             return
 
-        self.webhook = await ctx.channel.create_webhook(
-            name="Hard Brain",
-            avatar=self.bot.user.avatar,
-            reason="Created by Hard Brain and should be removed automatically - "
-                   "if it persists when the quiz is not running, feel free to delete"
-        )
+        if isinstance(ctx.channel, TextChannel):
+            try:
+                self.message_receiver = await ctx.channel.create_webhook(
+                    name="Hard Brain",
+                    avatar=self.bot.user.avatar,
+                    reason="Created by Hard Brain and should be removed automatically - "
+                           "if it persists when the quiz is not running, feel free to delete"
+                )
+            except disnake.Forbidden:
+                await ctx.edit_original_response(
+                    f"Error: Missing 'Manage Webhooks' permission, try starting in a Thread instead of a text channel")
+                return
+        elif isinstance(ctx.channel, Thread):
+            self.message_receiver = ctx.channel
+        else:
+            await ctx.edit_original_response(f"Error: Channel '{ctx.channel.name}' is not a TextChannel or Thread")
+            return
 
         self.game = QuizService(
             ctx,
-            self.webhook,
+            self.message_receiver,
             self.backend,
             song_data_list=question_response,
             round_time_limit=time_limit,
@@ -96,8 +107,8 @@ class QuizCommands(commands.Cog):
         try:
             await self.game.start_game()
         finally:
-            if self.webhook:
-                await self.webhook.delete()
+            if self.message_receiver and isinstance(self.message_receiver, Webhook):
+                await self.message_receiver.delete()
             self.game = None
 
     @commands.slash_command(description="Cancels an ongoing quiz")
