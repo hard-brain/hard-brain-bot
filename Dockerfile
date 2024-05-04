@@ -1,8 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG PYTHON_REGISTRY=python
-ARG PYTHON_VERSION=3.10.13
-FROM ${PYTHON_REGISTRY}:${PYTHON_VERSION}-alpine as base
+FROM python:3.10.13-alpine as base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -17,12 +15,12 @@ RUN apk update && apk add \
     ffmpeg \
     libopusenc \
     libogg \
-    opus-tools
-RUN python -m pip install wheel poetry==1.7.1
+    opus-tools && \
+    python -m pip install wheel poetry==1.7.1
 
 COPY pyproject.toml poetry.lock ./
-RUN touch README.md
-RUN poetry install --without dev && rm -rf $POETRY_CACHE_DIR
+RUN touch README.md && \
+    poetry install --without dev && rm -rf $POETRY_CACHE_DIR
 
 COPY hard_brain_bot ./hard_brain_bot
 RUN poetry install --without dev --no-root
