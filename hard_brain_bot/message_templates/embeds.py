@@ -8,12 +8,23 @@ def embed_about() -> Embed:
     embed = Embed(
         title="Hard Brain",
         description="A IIDX music quiz bot. Made by corndog.",
+        url="https://github.com/hard-brain"
     )
     embed.add_field(
         name="Commands",
-        value="`about`, `start_quiz`, `skip_round`, `end_quiz`, `current_scores`",
+        value="`about`, `start_quiz`, `skip_round`, `end_quiz`, `current_scores`, `suggest`",
         inline=False,
     )
+    return embed
+
+
+def embed_suggest(user_name: str, guild_name: str, current_title: str, suggested_titles: str) -> Embed:
+    embed = Embed(
+        title="New song titles suggestion",
+        description=f"Suggestion from user '{user_name}' in guild '{guild_name}'"
+    )
+    embed.add_field(name="Current title", value=current_title, inline=False)
+    embed.add_field(name="Suggested title", value=suggested_titles, inline=False)
     return embed
 
 

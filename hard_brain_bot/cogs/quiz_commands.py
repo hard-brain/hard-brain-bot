@@ -29,11 +29,6 @@ class QuizCommands(commands.Cog):
             return
         await self.game.queue_answer_to_check(ctx)
 
-    @commands.slash_command(description="More information about Hard Brain")
-    async def about(self, ctx: disnake.ApplicationCommandInteraction) -> None:
-        embed = embeds.embed_about()
-        await ctx.response.send_message(embed=embed)
-
     @commands.slash_command(description="Starts a quiz")
     async def start_quiz(
             self,
