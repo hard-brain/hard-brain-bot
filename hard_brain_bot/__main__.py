@@ -8,7 +8,7 @@ from hard_brain_bot.utils.logging_utils import setup_logging
 if __name__ == "__main__":
     bot = HardBrain()
     bot.load_extension("hard_brain_bot.cogs.quiz_commands")
-    _logger = setup_logging("disnake", "WARNING", format_string="%(asctime)s:%(levelname)s:%(name)s: %(message)s")
+    _logger = setup_logging("disnake", "CRITICAL", format_string="%(asctime)s:%(levelname)s:%(name)s: %(message)s")
 
 
     @bot.event

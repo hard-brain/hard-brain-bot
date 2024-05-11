@@ -1,5 +1,3 @@
-import logging
-
 import disnake
 from aiohttp import ClientConnectorError
 from disnake import VoiceClient, Webhook, Thread, TextChannel
@@ -74,8 +72,7 @@ class QuizCommands(commands.Cog):
         await ctx.edit_original_response("Please wait, preparing a quiz...")
         try:
             question_response = await self.backend.get_question(number_of_songs=rounds)
-        except (CommandInvokeError, ClientConnectorError) as e:
-            logging.error(e)
+        except (CommandInvokeError, ClientConnectorError):
             await ctx.edit_original_response(f"Network error occurred while preparing quiz...")
             return
 

@@ -1,17 +1,19 @@
 import asyncio
+import io
+import logging
+import platform
 
 import disnake
-import io
-import platform
-import logging
-
 from disnake import FFmpegOpusAudio, ApplicationCommandInteraction, Webhook, Thread
 
 from hard_brain_bot.data_models.requests import SongData
-from hard_brain_bot.utils.async_helpers import AsyncTimer, AnswerQueue
+from hard_brain_bot.message_templates import embeds
 from hard_brain_bot.services.hard_brain_service import HardBrainService
 from hard_brain_bot.services.scoring_service import ScoringService
-from hard_brain_bot.message_templates import embeds
+from hard_brain_bot.utils.async_helpers import AsyncTimer, AnswerQueue
+
+
+_logger = logging.getLogger("QuizService")
 
 
 def _process_song_data_from_props(song_data_list):
@@ -47,7 +49,7 @@ class QuizService:
             if platform.system() != "Windows" and not disnake.opus.is_loaded():
                 disnake.opus.load_opus("libopusenc.so.0")
         except OSError:
-            logging.error("Could not load the opus shared library")
+            _logger.info("Could not load the opus shared library")
         self.backend = backend
         self.song_data_list = _process_song_data_from_props(song_data_list)
         self.score_service = ScoringService()
@@ -70,7 +72,7 @@ class QuizService:
             self._current_round += 1
 
     async def start_game(self):
-        logging.info(
+        _logger.info(
             f"Starting new game with {len(self.song_data_list)} questions in {self.voice_channel}"
         )
         await self.webhook.send(f"Quiz starting in #{self.voice_channel} with {len(self.song_data_list)} rounds!")
@@ -85,13 +87,13 @@ class QuizService:
         try:
             audio_response = await self.backend.get_audio(song.song_id)
         except Exception as e:
-            logging.error(f"Fetching audio for song id {song.song_id} failed: {e}")
+            _logger.error(f"Fetching audio for song id {song.song_id} failed: {e}")
             await self.webhook.send("An error occurred while loading the next song, skipping round")
             await self._end_round()
             return
 
         if not self._game_in_progress:
-            logging.debug("game has ended, skipping this round")
+            _logger.debug("game has ended, skipping this round")
             return
 
         song_bytes = io.BytesIO(audio_response)
@@ -132,14 +134,14 @@ class QuizService:
             await self._end_round(ctx)
 
     async def end_game(self, show_embed=True):
-        logging.info(
+        _logger.info(
             f"Ending game with {len(self.song_data_list)} questions in {self.voice_channel}"
         )
         if self._round_timer and not self._round_timer.is_executed():
             try:
                 self._round_timer.cancel()
             except RuntimeWarning as e:
-                logging.warning(e)
+                _logger.warning(e)
 
         if show_embed:  # this is so stupid btw
             await self.webhook.send(
@@ -157,7 +159,7 @@ class QuizService:
         await self._cleanup_voice()
 
     async def skip_round(self):
-        logging.info(f"Skipping round...")
+        _logger.info(f"Skipping round...")
         self._round_timer.cancel()
         await self._end_round()
 
