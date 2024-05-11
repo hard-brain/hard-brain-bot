@@ -113,6 +113,7 @@ class QuizService:
         await self._round_timer.timeout()
 
     async def _end_round(self, ctx: disnake.Message | None = None):
+        self._round_is_over = True
         if self._current_song is not None:
             await self._send_end_of_round_embed(ctx)
         self._current_song = None
