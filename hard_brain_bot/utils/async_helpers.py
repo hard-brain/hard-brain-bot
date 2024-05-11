@@ -103,4 +103,6 @@ class AnswerQueue:
             return False
 
         answer_input: AnswerQueue.Input = await self._queue.get()
+        if not isinstance(answer_input.current_song, SongData):
+            return False
         return answer_input.current_song.is_correct_answer(answer_input.answer)
