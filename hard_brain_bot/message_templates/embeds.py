@@ -1,6 +1,7 @@
 from collections import Counter
 
 from disnake import Embed, Asset
+import importlib.metadata
 from hard_brain_bot.data_models.requests import SongData
 
 
@@ -15,6 +16,7 @@ def embed_about() -> Embed:
         value="`about`, `start_quiz`, `skip_round`, `end_quiz`, `current_scores`, `suggest`",
         inline=False,
     )
+    embed.add_field(name="Version", value=f"{importlib.metadata.version('hard_brain_bot')}")
     return embed
 
 

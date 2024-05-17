@@ -23,6 +23,6 @@ RUN touch README.md && \
     poetry install --without dev && rm -rf $POETRY_CACHE_DIR
 
 COPY hard_brain_bot ./hard_brain_bot
-RUN poetry install --without dev --no-root
+RUN poetry install --without dev
 
 CMD ["python", "-m", "hard_brain_bot"]
