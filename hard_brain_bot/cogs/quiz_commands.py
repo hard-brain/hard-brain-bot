@@ -54,11 +54,11 @@ class QuizCommands(commands.Cog):
             rounds: int = 5,
             time_limit: float = 30.0,
     ) -> None:
-        # check user is in voice channel
-        is_game_possible = self._check_game_setup_is_possible(ctx)
-        is_options_valid = _check_game_options(ctx, time_limit=time_limit, rounds=rounds)
+        # check user is in voice channel and that a game is not in progress
+        is_game_possible = await self._check_game_setup_is_possible(ctx)
+        is_options_valid = await _check_game_options(ctx, time_limit=time_limit, rounds=rounds)
 
-        # check valid rounds and time limit
+        # check if valid number of rounds and time limit
         if not (is_game_possible and is_options_valid):
             return
 
@@ -69,8 +69,8 @@ class QuizCommands(commands.Cog):
             await ctx.edit_original_response(f"Network error occurred while preparing quiz...")
             return
 
-        # set up the webhook to send quiz messages through
-        await self._setup_message_receiver(ctx)
+        # set up the message receiver to send quiz messages through (either text channel webhook or a thread)
+        self.message_receiver = await self._setup_message_receiver(ctx)
         if not self.message_receiver:
             await ctx.edit_original_response(f"Error: Channel '{ctx.channel.name}' is not a TextChannel or Thread")
             return
@@ -120,9 +120,10 @@ class QuizCommands(commands.Cog):
         )
 
     async def _setup_message_receiver(self, ctx: disnake.ApplicationCommandInteraction):
+        message_receiver = None
         if isinstance(ctx.channel, TextChannel):
             try:
-                self.message_receiver = await ctx.channel.create_webhook(
+                message_receiver = await ctx.channel.create_webhook(
                     name="Hard Brain",
                     avatar=self.bot.user.avatar,
                     reason="Temporary webhook created by Hard Brain and should be removed automatically - "
@@ -133,14 +134,14 @@ class QuizCommands(commands.Cog):
                     f"Error: Missing 'Manage Webhooks' permission, try starting in a Thread instead of a text channel")
                 return
         elif isinstance(ctx.channel, Thread):
-            self.message_receiver = ctx.channel
+            message_receiver = ctx.channel
+        return message_receiver
 
     async def _get_questions(self, rounds: int):
         try:
             question_response = await self.backend.get_question(number_of_songs=rounds)
             return question_response
-        except (CommandInvokeError, ClientConnectorError) as e:
-            logging.error(e)
+        except (CommandInvokeError, ClientConnectorError):
             return {}
 
     async def _check_game_setup_is_possible(self, ctx: disnake.ApplicationCommandInteraction):
@@ -150,7 +151,6 @@ class QuizCommands(commands.Cog):
             )
             return False
 
-        # check if a game is in progress
         if self.game and self.game.is_in_progress():
             await ctx.response.send_message("A quiz is already in progress!", ephemeral=True)
             return False
