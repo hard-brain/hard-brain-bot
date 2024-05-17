@@ -10,6 +10,24 @@ from hard_brain_bot.services.hard_brain_service import HardBrainService
 from hard_brain_bot.services.quiz_service import QuizService
 
 
+async def _check_game_options(ctx: disnake.ApplicationCommandInteraction, time_limit: float, rounds: int):
+    if time_limit < QuizCommands.MIN_TIME_LIMIT or time_limit > QuizCommands.MAX_TIME_LIMIT:
+        await ctx.response.send_message(
+            "Invalid time limit. Time limit must be between %d and %d seconds."
+            % (QuizCommands.MIN_TIME_LIMIT, QuizCommands.MAX_TIME_LIMIT),
+            ephemeral=True
+        )
+        return False
+    if rounds < QuizCommands.MIN_ROUNDS or rounds > QuizCommands.MAX_ROUNDS:
+        await ctx.response.send_message(
+            "Invalid number of rounds. Number of rounds must be between %d and %d"
+            % (QuizCommands.MIN_ROUNDS, QuizCommands.MAX_ROUNDS),
+            ephemeral=True
+        )
+        return False
+    return True
+
+
 class QuizCommands(commands.Cog):
     MIN_TIME_LIMIT: float = 5.0
     MAX_TIME_LIMIT: float = 60.0
@@ -37,58 +55,27 @@ class QuizCommands(commands.Cog):
             time_limit: float = 30.0,
     ) -> None:
         # check user is in voice channel
-        if not ctx.author.voice:
-            await ctx.response.send_message(
-                "Error: you are not connected to a voice channel", ephemeral=True
-            )
-            return
-        if self.game and self.game.is_in_progress():
-            await ctx.response.send_message("A quiz is already in progress!", ephemeral=True)
-            return
-        if (
-                time_limit < QuizCommands.MIN_TIME_LIMIT
-                or time_limit > QuizCommands.MAX_TIME_LIMIT
-        ):
-            await ctx.response.send_message(
-                "Invalid time limit. Time limit must be between %d and %d seconds."
-                % (QuizCommands.MIN_TIME_LIMIT, QuizCommands.MAX_TIME_LIMIT),
-                ephemeral=True
-            )
-            return
-        if rounds < QuizCommands.MIN_ROUNDS or rounds > QuizCommands.MAX_ROUNDS:
-            await ctx.response.send_message(
-                "Invalid number of rounds. Number of rounds must be between %d and %d"
-                % (QuizCommands.MIN_ROUNDS, QuizCommands.MAX_ROUNDS),
-                ephemeral=True
-            )
+        is_game_possible = self._check_game_setup_is_possible(ctx)
+        is_options_valid = _check_game_options(ctx, time_limit=time_limit, rounds=rounds)
+
+        # check valid rounds and time limit
+        if not (is_game_possible and is_options_valid):
             return
 
+        # begin preparing quiz
         await ctx.response.defer()
         await ctx.edit_original_response("Please wait, preparing a quiz...")
-        try:
-            question_response = await self.backend.get_question(number_of_songs=rounds)
-        except (CommandInvokeError, ClientConnectorError):
+        if (question_response := await self._get_questions(rounds)) == {}:
             await ctx.edit_original_response(f"Network error occurred while preparing quiz...")
             return
 
-        if isinstance(ctx.channel, TextChannel):
-            try:
-                self.message_receiver = await ctx.channel.create_webhook(
-                    name="Hard Brain",
-                    avatar=self.bot.user.avatar,
-                    reason="Created by Hard Brain and should be removed automatically - "
-                           "if it persists when the quiz is not running, feel free to delete"
-                )
-            except disnake.Forbidden:
-                await ctx.edit_original_response(
-                    f"Error: Missing 'Manage Webhooks' permission, try starting in a Thread instead of a text channel")
-                return
-        elif isinstance(ctx.channel, Thread):
-            self.message_receiver = ctx.channel
-        else:
+        # set up the webhook to send quiz messages through
+        await self._setup_message_receiver(ctx)
+        if not self.message_receiver:
             await ctx.edit_original_response(f"Error: Channel '{ctx.channel.name}' is not a TextChannel or Thread")
             return
 
+        # create quiz instance
         self.game = QuizService(
             ctx,
             self.message_receiver,
@@ -131,6 +118,43 @@ class QuizCommands(commands.Cog):
         await ctx.response.send_message(
             embed=embeds.embed_scores(scores, title="Current Scores")
         )
+
+    async def _setup_message_receiver(self, ctx: disnake.ApplicationCommandInteraction):
+        if isinstance(ctx.channel, TextChannel):
+            try:
+                self.message_receiver = await ctx.channel.create_webhook(
+                    name="Hard Brain",
+                    avatar=self.bot.user.avatar,
+                    reason="Temporary webhook created by Hard Brain and should be removed automatically - "
+                           "if it persists when the quiz is not running, feel free to delete"
+                )
+            except disnake.Forbidden:
+                await ctx.edit_original_response(
+                    f"Error: Missing 'Manage Webhooks' permission, try starting in a Thread instead of a text channel")
+                return
+        elif isinstance(ctx.channel, Thread):
+            self.message_receiver = ctx.channel
+
+    async def _get_questions(self, rounds: int):
+        try:
+            question_response = await self.backend.get_question(number_of_songs=rounds)
+            return question_response
+        except (CommandInvokeError, ClientConnectorError) as e:
+            logging.error(e)
+            return {}
+
+    async def _check_game_setup_is_possible(self, ctx: disnake.ApplicationCommandInteraction):
+        if not ctx.author.voice:
+            await ctx.response.send_message(
+                "Error: you are not connected to a voice channel", ephemeral=True
+            )
+            return False
+
+        # check if a game is in progress
+        if self.game and self.game.is_in_progress():
+            await ctx.response.send_message("A quiz is already in progress!", ephemeral=True)
+            return False
+        return True
 
 
 def setup(bot: HardBrain) -> None:
