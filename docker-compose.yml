@@ -1,7 +1,0 @@
-services:
-  bot:
-    build:
-      context: .
-      dockerfile: "Dockerfile"
-    container_name: bot
-    env_file: ./.env
