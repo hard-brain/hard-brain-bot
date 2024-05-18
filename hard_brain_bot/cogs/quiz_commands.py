@@ -5,6 +5,7 @@ from aiohttp import ClientConnectorError
 from disnake import VoiceClient, Webhook, Thread, TextChannel
 from disnake.ext import commands
 from disnake.ext.commands import CommandInvokeError
+from loguru import logger
 
 from hard_brain_bot.client import HardBrain
 from hard_brain_bot.message_templates import embeds
@@ -40,6 +41,7 @@ class QuizCommands(commands.Cog):
             rounds: int = 5,
             time_limit: float = 30.0,
     ) -> None:
+        logger.info("Responding to 'start_quiz' command")
         await ctx.response.defer()
         # check user is in voice channel and that a game is not in progress
         is_game_possible = await self._check_game_setup_is_possible(ctx)
@@ -82,6 +84,7 @@ class QuizCommands(commands.Cog):
 
     @commands.slash_command(description="Cancels an ongoing quiz")
     async def end_quiz(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+        logger.info("Responding to 'end_quiz' command")
         guild_id = ctx.guild.id
         if guild_id not in self.games.keys():
             await ctx.response.send_message("No quiz is in progress", ephemeral=True)
@@ -94,6 +97,7 @@ class QuizCommands(commands.Cog):
 
     @commands.slash_command(description="Skip a round")
     async def skip_round(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+        logger.info("Responding to 'skip_round' command")
         guild_id = ctx.guild.id
         if guild_id not in self.games.keys():
             await ctx.response.send_message("No quiz is in progress", ephemeral=True)
@@ -105,6 +109,7 @@ class QuizCommands(commands.Cog):
 
     @commands.slash_command(description="Get the current scores")
     async def current_scores(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+        logger.info("Responding to 'current_scores' command")
         guild_id = ctx.guild.id
         if guild_id not in self.games.keys():
             await ctx.response.send_message("No quiz is in progress", ephemeral=True)
@@ -125,9 +130,11 @@ class QuizCommands(commands.Cog):
                     reason="Temporary webhook created by Hard Brain and should be removed automatically - "
                            "if it persists when the quiz is not running, feel free to delete"
                 )
+                logger.debug("Webhook created successfully")
             except disnake.Forbidden:
                 await ctx.edit_original_response(
                     f"Error: Missing 'Manage Webhooks' permission, try starting in a Thread instead of a text channel")
+                logger.error("Failed to create webhook: Forbidden")
                 return
         elif isinstance(ctx.channel, Thread):
             message_receiver = ctx.channel
@@ -159,6 +166,7 @@ class QuizCommands(commands.Cog):
     def _remove_game(self, guild_id: int):
         try:
             del self.games[guild_id]
+            logger.info(f"Removed game with id '{guild_id}'")
         except KeyError:
             pass
 

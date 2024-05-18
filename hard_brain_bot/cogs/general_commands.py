@@ -2,6 +2,7 @@ import disnake
 from aiohttp import ClientSession, ClientConnectorError
 from disnake.ext import commands
 from disnake.ext.commands import CommandInvokeError
+from loguru import logger
 
 from hard_brain_bot.client import HardBrain
 from hard_brain_bot.message_templates import embeds
@@ -18,16 +19,23 @@ class GeneralCommands(commands.Cog):
 
     @commands.slash_command(description="Suggest alternate title(s) for a song")
     async def suggest(self, ctx: disnake.ApplicationCommandInteraction, current_song_title: str, suggested_title: str):
-        embed = embeds.embed_suggest(ctx.author.name, ctx.guild.name, current_song_title, suggested_title)
+        author_name = ctx.author.name
+        guild_name = ctx.guild.name
+        embed = embeds.embed_suggest(author_name, guild_name, current_song_title, suggested_title)
         try:
             await GeneralCommands._send_feedback(embed)
             await ctx.response.send_message("Your suggestion has been received.", ephemeral=True)
-        except (CommandInvokeError, ClientConnectorError):
+            logger.info(
+                f"Song title suggestion received from user '{author_name}' in guild '{guild_name}': "
+                f"{current_song_title} -> {suggested_title}"
+            )
+        except (CommandInvokeError, ClientConnectorError) as e:
             await ctx.response.send_message(
                 "An unexpected error occurred while sending feedback. Please start a discussion on GitHub instead "
                 "(https://github.com/orgs/hard-brain/discussions/categories/song-title-changes)",
                 ephemeral=True
             )
+            logger.error(f"Unexpected {type(e)} error occurred while sending feedback")
 
     @staticmethod
     async def _send_feedback(embed):
