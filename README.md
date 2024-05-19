@@ -19,7 +19,7 @@ This service is designed to be run alongside the Hard Brain API. If those servic
 
 1. Set an environment variable `DISCORD_TOKEN` as your Discord bot API token
 2. Create a new Poetry environment and run `poetry install`
-3. Run `python src/__main__.py`
+3. Run `python hard_brain_bot/__main__.py`
 
 # Contribution & Feedback
 Issues and PRs are welcome, and any general feedback for Hard Brain as a whole can be submitted 
