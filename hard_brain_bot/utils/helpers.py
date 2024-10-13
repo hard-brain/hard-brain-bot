@@ -56,6 +56,13 @@ class VersionHelper:
         CHAR_LIMIT = 80
         if len(user_input) > CHAR_LIMIT:
             raise ValueError(f"User input longer than {CHAR_LIMIT} characters")
+        stripped = user_input
+        for char in '-, ':
+            stripped.replace(char, '')
+        if not stripped.isnumeric():
+            raise ValueError(
+                "Invalid user input. Input should be comma-separated version numbers, with ranges separated by dashes (e.g. 1,2,3-5,7)"
+            )
         return VersionHelper.__filter_versions(user_input)
 
     @staticmethod
@@ -66,6 +73,10 @@ class VersionHelper:
             start = int(i.group(1))
             end = int(i.group(2)) if i.group(2) else start
             result.update(range(start, end + 1))
+        
+        if not result.issubset(VersionHelper.__valid_versions):
+            invalid_versions = result.difference(VersionHelper.__valid_versions)
+            raise ValueError(f"Invalid user input. Version input contained invalid version(s) {''.join(invalid_versions)} (currently supporting 1-{VersionHelper.__PREVIOUS_STYLE - 1})")
 
         return sorted(result.intersection(VersionHelper.__valid_versions))
     

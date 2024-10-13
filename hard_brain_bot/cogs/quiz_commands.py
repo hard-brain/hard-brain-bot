@@ -62,7 +62,6 @@ class QuizCommands(commands.Cog):
         if not (is_game_possible and is_options_valid):
             return
         
-        await ctx.response.defer()
 
         validated_versions = []
         if versions != "":
@@ -70,10 +69,10 @@ class QuizCommands(commands.Cog):
                 validated_versions = VersionHelper.get_game_versions(versions)
             except ValueError as error:
                 logger.info(f"Received invalid versions input '{versions}'")
-                await ctx.edit_original_response(f"Error: {str(error)}")
+                await ctx.response.send_message(f"Error: {str(error)}", ephemeral=True)
                 return
 
-        
+        await ctx.response.defer()
 
         # begin preparing quiz
         await ctx.edit_original_response("Please wait, preparing a quiz...")
