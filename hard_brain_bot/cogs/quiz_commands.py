@@ -43,7 +43,15 @@ class QuizCommands(commands.Cog):
     ) -> None:
         logger.info("Responding to 'start_quiz' command")
         await ctx.response.defer()
-        # check user is in voice channel and that a game is not in progress
+
+        # check user is in voice channel
+        if not ctx.author.voice:
+            await ctx.response.send_message(
+                "Error: you are not connected to a voice channel", ephemeral=True
+            )
+            return
+
+        # check that a game is possible
         is_game_possible = await self._check_game_setup_is_possible(ctx)
         if is_game_possible:
             is_options_valid = await _check_game_options(
