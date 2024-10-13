@@ -44,13 +44,26 @@ class QuizCommands(commands.Cog):
         versions: str = "",
     ) -> None:
         logger.info("Responding to 'start_quiz' command")
+
+        # check user is in voice channel
+        if not ctx.author.voice:
+            await ctx.response.send_message(
+                "Error: you are not connected to a voice channel", ephemeral=True
+            )
+            return
+
         await ctx.response.defer()
 
-        # check user is in voice channel and that a game is not in progress
+        # check that a game is possible
         is_game_possible = await self._check_game_setup_is_possible(ctx)
-        is_options_valid = await _check_game_options(
-            ctx, time_limit=time_limit, rounds=rounds
-        )
+        if is_game_possible:
+            is_options_valid = await _check_game_options(
+                ctx, time_limit=time_limit, rounds=rounds
+            )
+        
+        if not (is_game_possible and is_options_valid):
+            return
+
         validated_versions = ""
         if versions != "":
             try:
@@ -60,9 +73,7 @@ class QuizCommands(commands.Cog):
                 await ctx.edit_original_response(f"Error: {str(error)}")
                 return
 
-        # check if valid number of rounds and time limit
-        if not (is_game_possible and is_options_valid):
-            return
+        
 
         # begin preparing quiz
         await ctx.edit_original_response("Please wait, preparing a quiz...")
