@@ -68,3 +68,8 @@ class VersionHelper:
             result.update(range(start, end + 1))
 
         return sorted(result.intersection(VersionHelper.__valid_versions))
+    
+    @staticmethod
+    def format_styles(styles: list[int]) -> str:
+        formatted = [VersionHelper.versions[str(s).zfill(2)] for s in styles]
+        return ', '.join(formatted)

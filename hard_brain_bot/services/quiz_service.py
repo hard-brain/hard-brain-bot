@@ -10,6 +10,7 @@ from hard_brain_bot.data_models.requests import SongData
 from hard_brain_bot.message_templates import embeds
 from hard_brain_bot.services.hard_brain_service import HardBrainService
 from hard_brain_bot.services.scoring_service import ScoringService
+from hard_brain_bot.utils.helpers import VersionHelper
 from hard_brain_bot.utils.async_helpers import AsyncTimer, AnswerQueue
 
 
@@ -75,7 +76,7 @@ class QuizService:
         )
         start_message = f"Quiz starting in #{self.voice_channel} with {len(self.song_data_list)} rounds!"
         if styles != "":
-            start_message += f"\nStyles: {styles}"
+            start_message += f"\nStyles: {'all' if len(styles) == 0 else VersionHelper.format_styles(styles)}"
         await self.webhook.send(start_message)
         self._voice = await self.voice_channel.connect()
         self._game_in_progress = True
