@@ -10,6 +10,7 @@ class SongData:
     filename: str
     title: str
     alt_titles: list[str]
+    game_version: int
     genre: str
     artist: str
     similarity_threshold = 85

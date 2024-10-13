@@ -64,7 +64,7 @@ class QuizCommands(commands.Cog):
         
         await ctx.response.defer()
 
-        validated_versions = ""
+        validated_versions = []
         if versions != "":
             try:
                 validated_versions = VersionHelper.get_game_versions(versions)
@@ -106,7 +106,7 @@ class QuizCommands(commands.Cog):
         self.games[guild_id] = game
 
         try:
-            await game.quiz_service.start_game()
+            await game.quiz_service.start_game(validated_versions)
         finally:
             if game.message_receiver and isinstance(game.message_receiver, Webhook):
                 await game.message_receiver.delete()
@@ -171,7 +171,7 @@ class QuizCommands(commands.Cog):
             message_receiver = ctx.channel
         return message_receiver
 
-    async def _get_questions(self, rounds: int, versions: str = ""):
+    async def _get_questions(self, rounds: int, versions: list[int]):
         try:
             question_response = await self.backend.get_question(
                 number_of_songs=rounds, versions=versions

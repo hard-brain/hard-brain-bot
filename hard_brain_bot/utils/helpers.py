@@ -52,7 +52,7 @@ class VersionHelper:
         return int(version) in VersionHelper.__valid_versions
 
     @staticmethod
-    def get_game_versions(user_input: str) -> str:
+    def get_game_versions(user_input: str) -> list[int]:
         CHAR_LIMIT = 80
         if len(user_input) > CHAR_LIMIT:
             raise ValueError(f"User input longer than {CHAR_LIMIT} characters")

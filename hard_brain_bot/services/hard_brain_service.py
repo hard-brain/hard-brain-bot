@@ -22,15 +22,16 @@ class HardBrainService:
         self.url = self.__set_url()
 
     async def get_question(
-        self, number_of_songs: int = 1, versions: str = ""
+        self, number_of_songs: int = 5, versions: str = ""
     ) -> dict | list[dict]:
-        if number_of_songs <= 0:
-            raise ValueError("Number of songs requested must be greater than 0")
-        params = {"number_of_songs": number_of_songs}
+        params = {}
         if versions != "":
             params["version_string"] = versions
+        if number_of_songs <= 0:
+            raise ValueError("Number of songs requested must be greater than 0")
+        params["number_of_songs"] = number_of_songs
         async with ClientSession() as session:
-            if number_of_songs != 1:
+            if len(params) > 0:
                 return await http_requests.request_json(
                     "GET", f"{self.url}/question", session, params=params
                 )

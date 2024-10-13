@@ -20,7 +20,8 @@ def _process_song_data_from_props(song_data_list):
         title=props["title"],
         alt_titles=props["alt_titles"].split(", "),
         genre=props["genre"],
-        artist=props["artist"]), song_data_list)
+        artist=props["artist"],
+        game_version=props["game_version"]), song_data_list)
     return list(song_data_map)
 
 
@@ -68,11 +69,14 @@ class QuizService:
             await asyncio.create_task(task)
             self._current_round += 1
 
-    async def start_game(self):
+    async def start_game(self, styles: str = ""):
         logger.info(
             f"Starting new game with {len(self.song_data_list)} questions in {self.voice_channel}"
         )
-        await self.webhook.send(f"Quiz starting in #{self.voice_channel} with {len(self.song_data_list)} rounds!")
+        start_message = f"Quiz starting in #{self.voice_channel} with {len(self.song_data_list)} rounds!"
+        if styles != "":
+            start_message += f"\nStyles: {styles}"
+        await self.webhook.send(start_message)
         self._voice = await self.voice_channel.connect()
         self._game_in_progress = True
         await self._process_rounds()
