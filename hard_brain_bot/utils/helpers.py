@@ -1,3 +1,6 @@
+import re
+
+
 class VersionHelper:
     versions = {
         "01": "1st Style",
@@ -31,7 +34,11 @@ class VersionHelper:
         "29": "Cast Hour",
         "30": "RESIDENT",
         "31": "EPOLIS",
+        "32": "Pinky Crush",
     }
+
+    __PREVIOUS_STYLE = 32
+    __valid_versions = frozenset(range(1, __PREVIOUS_STYLE + 1))
 
     @staticmethod
     def get_game_version_from_song_id(song_id: str) -> str:
@@ -39,3 +46,25 @@ class VersionHelper:
         if version_key in VersionHelper.versions.keys():
             return VersionHelper.versions[version_key]
         return "Unknown"
+
+    @staticmethod
+    def is_valid_version(version: int | str):
+        return int(version) in VersionHelper.__valid_versions
+
+    @staticmethod
+    def get_game_versions(user_input: str) -> str:
+        CHAR_LIMIT = 80
+        if len(user_input) > CHAR_LIMIT:
+            raise ValueError(f"User input longer than {CHAR_LIMIT} characters")
+        return VersionHelper.__filter_versions(user_input)
+
+    @staticmethod
+    def __filter_versions(input_string: str) -> list[int]:
+        result = set()
+
+        for i in re.compile(r"(\d+)(?:-(\d+))?").finditer(input_string):
+            start = int(i.group(1))
+            end = int(i.group(2)) if i.group(2) else start
+            result.update(range(start, end + 1))
+
+        return sorted(result.intersection(VersionHelper.__valid_versions))

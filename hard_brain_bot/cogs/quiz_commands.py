@@ -12,6 +12,7 @@ from hard_brain_bot.message_templates import embeds
 from hard_brain_bot.services.hard_brain_service import HardBrainService
 from hard_brain_bot.services.quiz_service import QuizService
 from hard_brain_bot.data_models.game import Game
+from hard_brain_bot.utils.helpers import VersionHelper
 
 
 class QuizCommands(commands.Cog):
@@ -40,24 +41,24 @@ class QuizCommands(commands.Cog):
         ctx: disnake.ApplicationCommandInteraction,
         rounds: int = 5,
         time_limit: float = 30.0,
+        versions: str = "",
     ) -> None:
         logger.info("Responding to 'start_quiz' command")
-
-        # check user is in voice channel
-        if not ctx.author.voice:
-            await ctx.response.send_message(
-                "Error: you are not connected to a voice channel", ephemeral=True
-            )
-            return
-
         await ctx.response.defer()
 
-        # check that a game is possible
+        # check user is in voice channel and that a game is not in progress
         is_game_possible = await self._check_game_setup_is_possible(ctx)
-        if is_game_possible:
-            is_options_valid = await _check_game_options(
-                ctx, time_limit=time_limit, rounds=rounds
-            )
+        is_options_valid = await _check_game_options(
+            ctx, time_limit=time_limit, rounds=rounds
+        )
+        validated_versions = ""
+        if versions != "":
+            try:
+                validated_versions = VersionHelper.get_game_versions(versions)
+            except ValueError as error:
+                logger.info(f"Received invalid versions input '{versions}'")
+                await ctx.edit_original_response(f"Error: {str(error)}")
+                return
 
         # check if valid number of rounds and time limit
         if not (is_game_possible and is_options_valid):
@@ -65,7 +66,9 @@ class QuizCommands(commands.Cog):
 
         # begin preparing quiz
         await ctx.edit_original_response("Please wait, preparing a quiz...")
-        if (question_response := await self._get_questions(rounds)) == {}:
+        if (
+            question_response := await self._get_questions(rounds, validated_versions)
+        ) == {}:
             await ctx.edit_original_response(
                 f"Network error occurred while preparing quiz..."
             )
@@ -157,9 +160,11 @@ class QuizCommands(commands.Cog):
             message_receiver = ctx.channel
         return message_receiver
 
-    async def _get_questions(self, rounds: int):
+    async def _get_questions(self, rounds: int, versions: str = ""):
         try:
-            question_response = await self.backend.get_question(number_of_songs=rounds)
+            question_response = await self.backend.get_question(
+                number_of_songs=rounds, versions=versions
+            )
             return question_response
         except (CommandInvokeError, ClientConnectorError):
             return {}
