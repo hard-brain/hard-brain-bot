@@ -52,8 +52,6 @@ class QuizCommands(commands.Cog):
             )
             return
 
-        await ctx.response.defer()
-
         # check that a game is possible
         is_game_possible = await self._check_game_setup_is_possible(ctx)
         if is_game_possible:
@@ -63,6 +61,8 @@ class QuizCommands(commands.Cog):
         
         if not (is_game_possible and is_options_valid):
             return
+        
+        await ctx.response.defer()
 
         validated_versions = ""
         if versions != "":
