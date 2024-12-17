@@ -58,7 +58,7 @@ class VersionHelper:
             raise ValueError(f"User input longer than {CHAR_LIMIT} characters")
         stripped = user_input
         for char in '-, ':
-            stripped.replace(char, '')
+            stripped = stripped.replace(char, '')
         if not stripped.isnumeric():
             raise ValueError(
                 "Invalid user input. Input should be comma-separated version numbers, with ranges separated by dashes (e.g. 1,2,3-5,7)"
