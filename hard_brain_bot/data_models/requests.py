@@ -29,8 +29,11 @@ class SongData:
         # fuzzy match answer against correct answers
         normalized_answer = SongData._normalize_text(answer)
         for correct_answer in self.correct_answers:
-            score = fuzz.token_sort_ratio(SongData._normalize_text(correct_answer), normalized_answer)
-            if len(correct_answer) > 0 and score >= self.similarity_threshold:
+            normalized_correct_answer = SongData._normalize_text(correct_answer)
+            score = fuzz.token_sort_ratio(normalized_correct_answer, normalized_answer)
+
+            # make sure answers are not length of 0, as two empty strings will have 100% similarity
+            if len(normalized_correct_answer) > 0 and len(normalized_answer) > 0 and score >= self.similarity_threshold:
                 return True
         return False
 
